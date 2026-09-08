@@ -8,21 +8,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
 :root {
-  --bg: #F7F8FA;
-  --surface: #FFFFFF;
-  --surface-hover: #F1F5F9;
-  --text: #1A2332;
-  --text-secondary: #5A6578;
-  --text-muted: #94A3B8;
-  --border: #E2E8F0;
-  --accent: #2563EB;
-  --accent-light: #DBEAFE;
-  --free: #059669;
-  --free-bg: #D1FAE5;
-  --discount: #D97706;
-  --discount-bg: #FEF3C7;
-  --star: #E11D48;
-  --star-bg: #FFE4E6;
+  --bg: #F7F8FA; --surface: #FFFFFF; --surface-hover: #F1F5F9;
+  --text: #1A2332; --text-secondary: #5A6578; --text-muted: #94A3B8;
+  --border: #E2E8F0; --accent: #2563EB; --accent-light: #DBEAFE;
+  --free: #059669; --free-bg: #D1FAE5; --discount: #D97706; --discount-bg: #FEF3C7;
+  --star: #E11D48; --star-bg: #FFE4E6; --custom: #7C3AED; --custom-bg: #EDE9FE;
+  --warn: #B45309; --warn-bg: #FEF3C7;
   --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
   --radius: 10px;
@@ -34,7 +25,8 @@
     --text: #E8ECF1; --text-secondary: #94A3B8; --text-muted: #64748B;
     --border: #2D3B4E; --accent: #60A5FA; --accent-light: #1E3A5F;
     --free: #34D399; --free-bg: #064E3B; --discount: #FBBF24; --discount-bg: #78350F;
-    --star: #FB7185; --star-bg: #4C0519;
+    --star: #FB7185; --star-bg: #4C0519; --custom: #A78BFA; --custom-bg: #3B2A6B;
+    --warn: #FCD34D; --warn-bg: #4A3208;
     --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
   }
 }
@@ -43,115 +35,117 @@
   --text: #E8ECF1; --text-secondary: #94A3B8; --text-muted: #64748B;
   --border: #2D3B4E; --accent: #60A5FA; --accent-light: #1E3A5F;
   --free: #34D399; --free-bg: #064E3B; --discount: #FBBF24; --discount-bg: #78350F;
-  --star: #FB7185; --star-bg: #4C0519;
+  --star: #FB7185; --star-bg: #4C0519; --custom: #A78BFA; --custom-bg: #3B2A6B;
+  --warn: #FCD34D; --warn-bg: #4A3208;
   --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-
 body {
-  margin: 0; padding: 0;
-  background: var(--bg); color: var(--text);
+  margin: 0; padding: 0; background: var(--bg); color: var(--text);
   font-family: var(--font); line-height: 1.5;
-  width: 100vw; height: 100vh; height: 100dvh;
-  overflow: hidden;
+  width: 100vw; height: 100vh; height: 100dvh; overflow: hidden;
   display: flex; flex-direction: column;
 }
+button, input, select, textarea { font-family: var(--font); }
+button { cursor: pointer; }
 
 .leaflet-container { font-family: var(--font); }
 .leaflet-popup-content-wrapper { border-radius: var(--radius) !important; box-shadow: var(--shadow-lg) !important; padding: 0 !important; background: var(--surface) !important; color: var(--text) !important; }
 .leaflet-popup-content { margin: 0 !important; width: 280px !important; }
 .leaflet-popup-tip { background: var(--surface) !important; }
 .leaflet-popup-close-button { color: var(--text-muted) !important; font-size: 20px !important; top: 8px !important; right: 10px !important; }
+#map.placing { cursor: crosshair; }
 
 header {
   background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px; display: flex; align-items: center; gap: 10px;
   flex-shrink: 0; z-index: 1000; flex-wrap: wrap;
 }
-.logo { font-family: var(--font); font-weight: 700; font-size: 17px; color: var(--accent); white-space: nowrap; letter-spacing: -0.02em; }
+.logo { font-weight: 700; font-size: 17px; color: var(--accent); white-space: nowrap; letter-spacing: -0.02em; }
 .logo span { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
 .filters { display: flex; gap: 5px; flex-wrap: wrap; }
 .filter-btn {
-  font-family: var(--font); font-size: 12px; font-weight: 600;
-  padding: 4px 11px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 20px;
   border: 1px solid var(--border); background: var(--surface);
-  color: var(--text-secondary); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  color: var(--text-secondary); transition: all 0.15s; white-space: nowrap;
 }
 .filter-btn:hover { background: var(--surface-hover); }
 .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .filter-btn.active-free { background: var(--free); color: #fff; border-color: var(--free); }
 .filter-btn.active-discount { background: var(--discount); color: #fff; border-color: var(--discount); }
 .filter-btn.active-star { background: var(--star); color: #fff; border-color: var(--star); }
-
-.reset-btn {
-  font-family: var(--font); font-size: 11px; padding: 3px 8px;
-  border-radius: 6px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text-muted);
-  cursor: pointer; white-space: nowrap; margin-left: auto;
+.filter-btn.active-custom { background: var(--custom); color: #fff; border-color: var(--custom); }
+.hdr-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.sm-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); white-space: nowrap;
 }
-.reset-btn:hover { color: var(--star); border-color: var(--star); }
+.sm-btn:hover { background: var(--surface-hover); color: var(--text); }
+.sm-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sm-btn.primary:hover { opacity: 0.9; }
+.sm-btn.danger:hover { color: var(--star); border-color: var(--star); }
 
 .main-area { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 #map { flex: 1; min-width: 0; min-height: 0; z-index: 1; }
 
 .sidebar {
-  width: 350px; flex-shrink: 0; background: var(--surface);
-  border-left: 1px solid var(--border);
-  display: flex; flex-direction: column; overflow: hidden;
+  width: 380px; flex-shrink: 0; background: var(--surface);
+  border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
 }
-.sidebar-header {
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab {
+  flex: 1; padding: 10px 0; font-size: 13px; font-weight: 700; text-align: center;
+  color: var(--text-muted); background: transparent; border: none; border-bottom: 2px solid transparent;
 }
-.sidebar-header input {
-  flex: 1; font-family: var(--font); font-size: 13px;
-  padding: 6px 10px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--bg);
-  color: var(--text); outline: none;
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .n { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+.pane { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.pane.active { display: flex; }
+
+.sidebar-header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sidebar-header input[type=text] {
+  flex: 1; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; min-width: 0;
 }
 .sidebar-header input:focus { border-color: var(--accent); }
-.sidebar-header input::placeholder { color: var(--text-muted); }
 .count-badge { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
 
 .spot-list { flex: 1; overflow-y: auto; padding: 6px; min-height: 0; }
-.spot-card {
-  padding: 10px 12px; border-radius: var(--radius);
-  border: 1px solid transparent; cursor: pointer;
-  transition: all 0.15s; margin-bottom: 3px; position: relative;
-}
+.spot-card { padding: 10px 12px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all 0.15s; margin-bottom: 3px; position: relative; }
 .spot-card:hover { background: var(--surface-hover); border-color: var(--border); }
 .spot-card.active { background: var(--accent-light); border-color: var(--accent); }
-
 .spot-top { display: flex; align-items: flex-start; gap: 6px; }
-.spot-name { font-weight: 700; font-size: 13px; line-height: 1.4; flex: 1; min-width: 0; }
-.star-btn {
-  width: 28px; height: 28px; border-radius: 50%; border: none;
-  background: transparent; cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
+.spot-top > div:first-child { flex: 1; min-width: 0; }
+.spot-name { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: none; background: transparent;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: all 0.2s; color: var(--text-muted);
 }
-.star-btn:hover { background: var(--star-bg); color: var(--star); transform: scale(1.15); }
-.star-btn.starred { color: var(--star); }
-
-.tag {
-  font-size: 10px; font-weight: 700; padding: 1px 6px;
-  border-radius: 4px; white-space: nowrap; display: inline-block; margin-top: 2px;
-}
+.icon-btn:hover { background: var(--star-bg); color: var(--star); transform: scale(1.12); }
+.icon-btn.starred { color: var(--star); }
+.icon-btn.add:hover { background: var(--accent-light); color: var(--accent); }
+.tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; display: inline-block; }
 .tag-free { background: var(--free-bg); color: var(--free); }
 .tag-discount { background: var(--discount-bg); color: var(--discount); }
 .tag-star { background: var(--star-bg); color: var(--star); }
-.spot-tags { display: flex; gap: 4px; margin-top: 2px; flex-wrap: wrap; }
+.tag-custom { background: var(--custom-bg); color: var(--custom); }
+.tag-day { background: var(--accent-light); color: var(--accent); }
+.spot-tags { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
 .spot-sub { font-size: 11px; color: var(--text-muted); line-height: 1.3; margin-top: 2px; }
 .spot-benefit { font-size: 12px; color: var(--text-secondary); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.spot-links { display: flex; gap: 5px; margin-top: 6px; }
-.map-link {
-  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px;
-  text-decoration: none; display: inline-flex; align-items: center; gap: 3px; transition: opacity 0.15s;
-}
+.spot-links { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.map-link { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; border: none; }
 .map-link:hover { opacity: 0.8; }
 .map-link.naver { background: #03C75A; color: #fff; }
 .map-link.google { background: #4285F4; color: #fff; }
+.map-link.edit { background: var(--surface-hover); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.day-picker { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; padding: 8px; background: var(--bg); border-radius: 8px; }
+.day-picker .lbl { font-size: 11px; color: var(--text-muted); width: 100%; }
+.day-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); }
+.day-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .popup-inner { padding: 14px 16px; }
 .popup-title { font-weight: 700; font-size: 15px; line-height: 1.3; margin-bottom: 4px; padding-right: 20px; color: var(--text); }
@@ -159,68 +153,182 @@ header {
 .popup-benefit { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; padding: 8px 10px; background: var(--bg); border-radius: 6px; }
 .popup-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6; }
 .popup-links { display: flex; gap: 6px; flex-wrap: wrap; }
-.popup-star-btn {
-  font-family: var(--font); font-size: 12px; font-weight: 600;
-  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
-  cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
-}
-.popup-star-btn.add { background: var(--star-bg); color: var(--star); border-color: var(--star); }
-.popup-star-btn.add:hover { background: var(--star); color: #fff; }
-.popup-star-btn.remove { background: var(--surface); color: var(--text-muted); }
-.popup-star-btn.remove:hover { background: var(--surface-hover); }
+.pbtn { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+.pbtn.add-star { background: var(--star-bg); color: var(--star); border-color: var(--star); }
+.pbtn.add-star:hover { background: var(--star); color: #fff; }
+.pbtn.rm-star { background: var(--surface); color: var(--text-muted); }
+.pbtn.to-day { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.pbtn.to-day:hover { background: var(--accent); color: #fff; }
 
-.custom-marker {
-  width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: 2px solid #fff;
-}
+.custom-marker { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: 2px solid #fff; }
 .custom-marker span { transform: rotate(45deg); font-size: 11px; font-weight: 700; color: #fff; }
 .marker-free { background: #059669; }
 .marker-discount { background: #D97706; }
 .marker-star { background: #E11D48; }
+.marker-custom { background: #7C3AED; }
+.marker-air { background: #475569; }
+.order-badge { position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 1.5px solid #fff; transform: rotate(45deg); }
 
 .legend { display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--text-muted); }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
 
+/* Itinerary */
+.day-tabs { display: flex; gap: 4px; padding: 8px 10px; overflow-x: auto; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.day-tab { flex-shrink: 0; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 11px; font-weight: 700; color: var(--text-secondary); line-height: 1.2; text-align: center; }
+.day-tab small { display: block; font-weight: 500; color: var(--text-muted); font-size: 10px; }
+.day-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.day-tab.active small { color: rgba(255,255,255,0.8); }
+.day-tab.add { border-style: dashed; color: var(--text-muted); }
+.day-head { padding: 10px 12px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 12px; flex-shrink: 0; }
+.day-head label { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.day-head input, .day-head textarea { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 100%; }
+.day-head textarea { resize: vertical; min-height: 32px; }
+.day-head .row-actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.day-summary { grid-column: 1 / -1; font-size: 11px; color: var(--text-secondary); display: flex; gap: 10px; flex-wrap: wrap; }
+
+.itin-list { flex: 1; overflow-y: auto; padding: 8px; min-height: 0; }
+.itin-empty { padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.travel-row { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 22px; font-size: 11px; color: var(--text-muted); }
+.travel-row .line { width: 2px; height: 18px; background: var(--border); margin-left: 6px; border-radius: 2px; }
+.travel-row input { width: 44px; font-size: 11px; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); text-align: center; }
+.travel-row .est { color: var(--text-muted); }
+.travel-row .reset-tr { border: none; background: none; color: var(--accent); font-size: 10px; padding: 0 2px; }
+.itin-item { display: flex; gap: 8px; padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); position: relative; }
+.itin-item.dragging { opacity: 0.45; }
+.itin-item.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.itin-item .num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.itin-item .body { flex: 1; min-width: 0; }
+.itin-item .name { font-weight: 700; font-size: 13px; line-height: 1.3; cursor: pointer; }
+.itin-item .name:hover { color: var(--accent); }
+.itin-item .time { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.itin-item .time b { color: var(--accent); }
+.itin-item .meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.itin-item .meta input { width: 48px; font-size: 11px; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); text-align: center; }
+.itin-item .ctrls { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.itin-item .ctrls button { width: 24px; height: 22px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-size: 11px; padding: 0; }
+.itin-item .ctrls button:hover { background: var(--surface-hover); }
+.itin-item .ctrls button.rm:hover { color: var(--star); border-color: var(--star); }
+.itin-item .grip { cursor: grab; color: var(--text-muted); font-size: 14px; align-self: center; padding: 0 2px; user-select: none; }
+.warn { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 5000; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--surface); color: var(--text); border-radius: 14px; box-shadow: var(--shadow-lg); width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; padding: 18px 20px; }
+.modal h3 { margin: 0 0 6px; font-size: 16px; }
+.modal p { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.field input, .field textarea, .field select { width: 100%; font-size: 13px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.field textarea { resize: vertical; min-height: 60px; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+.field .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.coord-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.coord-hint.ok { color: var(--free); }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 6000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
 @media (max-width: 768px) {
   .main-area { flex-direction: column-reverse; }
-  .sidebar { width: 100%; height: 40%; border-left: none; border-bottom: 1px solid var(--border); }
-  #map { height: 60%; flex: none; }
-  header { padding: 8px 10px; gap: 6px; }
-  .filters { gap: 3px; }
+  .sidebar { width: 100%; height: 48%; border-left: none; border-bottom: 1px solid var(--border); }
+  #map { height: 52%; flex: none; }
+  header { padding: 6px 10px; gap: 6px; }
   .legend { display: none; }
+  .hdr-right { margin-left: 0; }
 }
-
-.spot-list::-webkit-scrollbar { width: 4px; }
-.spot-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.spot-list::-webkit-scrollbar, .itin-list::-webkit-scrollbar { width: 4px; }
+.spot-list::-webkit-scrollbar-thumb, .itin-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 </style>
 
 <header>
-  <div class="logo">Jeju All-Pass <span>76 Spots</span></div>
+  <div class="logo">Jeju All-Pass <span id="logoCount">76 Spots</span></div>
   <div class="filters">
-    <button class="filter-btn active" data-filter="all">全部 All</button>
-    <button class="filter-btn" data-filter="star">必去 Must</button>
-    <button class="filter-btn" data-filter="free">免費 Free</button>
-    <button class="filter-btn" data-filter="discount">折扣 Disc.</button>
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="star">必去</button>
+    <button class="filter-btn" data-filter="free">免費</button>
+    <button class="filter-btn" data-filter="discount">折扣</button>
+    <button class="filter-btn" data-filter="custom">非Pass</button>
   </div>
   <div class="legend">
     <span><span class="legend-dot" style="background:#E11D48"></span>必去</span>
     <span><span class="legend-dot" style="background:#059669"></span>免費</span>
     <span><span class="legend-dot" style="background:#D97706"></span>折扣</span>
+    <span><span class="legend-dot" style="background:#7C3AED"></span>非Pass</span>
   </div>
-  <button class="reset-btn" onclick="resetStars()">重設 Reset</button>
+  <div class="hdr-right">
+    <button class="sm-btn primary" onclick="openShare()">分享 / 匯入</button>
+    <button class="sm-btn danger" onclick="resetStars()">重設必去</button>
+  </div>
 </header>
 
 <div class="main-area">
   <div id="map"></div>
   <div class="sidebar">
-    <div class="sidebar-header">
-      <input type="text" id="search" placeholder="搜尋景點 Search...">
-      <span class="count-badge" id="count">76 spots</span>
+    <div class="tabs">
+      <button class="tab active" data-tab="spots">景點<span class="n" id="tabSpotsN"></span></button>
+      <button class="tab" data-tab="itin">行程<span class="n" id="tabItinN"></span></button>
     </div>
-    <div class="spot-list" id="spotList"></div>
+
+    <div class="pane active" id="pane-spots">
+      <div class="sidebar-header">
+        <input type="text" id="search" placeholder="搜尋景點 Search...">
+        <span class="count-badge" id="count">76</span>
+        <button class="sm-btn" onclick="openCustomForm()">＋自訂</button>
+      </div>
+      <div class="spot-list" id="spotList"></div>
+    </div>
+
+    <div class="pane" id="pane-itin">
+      <div class="day-tabs" id="dayTabs"></div>
+      <div class="day-head" id="dayHead"></div>
+      <div class="itin-list" id="itinList"></div>
+    </div>
   </div>
 </div>
+
+<div class="modal-bg" id="customModal">
+  <div class="modal">
+    <h3 id="customTitle">新增自訂景點（非 Pass）</h3>
+    <p>餐廳、景點、住宿都可以加。位置可以在地圖上點一下，或貼上 Google Map 座標（例：33.4996, 126.5312）。</p>
+    <input type="hidden" id="cId">
+    <div class="field"><label>名稱 *</label><input type="text" id="cName" placeholder="例：城山日出峰"></div>
+    <div class="field"><label>地址</label><input type="text" id="cAddr" placeholder="選填"></div>
+    <div class="field"><div class="two">
+      <div><label>營業時間</label><input type="text" id="cHours" placeholder="09:00~18:00"></div>
+      <div><label>預計停留（分）</label><input type="number" id="cStay" value="60" min="0" step="5"></div>
+    </div></div>
+    <div class="field"><label>備註</label><input type="text" id="cNote" placeholder="選填"></div>
+    <div class="field"><label>座標（緯度, 經度）</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="cCoord" placeholder="33.4996, 126.5312" style="flex:1">
+        <button class="sm-btn" type="button" id="pickBtn" onclick="startPick()">📍 地圖點選</button>
+      </div>
+      <div class="coord-hint" id="coordHint">沒有座標也可以儲存，只是不會顯示在地圖、也不估車程。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="sm-btn danger" id="cDelete" onclick="deleteCustom()" style="display:none">刪除</button>
+      <button class="sm-btn" onclick="closeModal('customModal')">取消</button>
+      <button class="sm-btn primary" onclick="saveCustom()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="shareModal">
+  <div class="modal">
+    <h3>分享 / 匯入</h3>
+    <p>把「分享碼」傳給朋友，朋友貼到下方「匯入」就會看到同一份必去清單、自訂景點與行程。匯入會覆蓋自己目前的資料。</p>
+    <div class="field"><label>我的分享碼</label><textarea id="shareOut" readonly></textarea></div>
+    <div class="modal-actions" style="justify-content:flex-start;margin-top:0;margin-bottom:14px">
+      <button class="sm-btn primary" onclick="copyShare()">複製分享碼</button>
+    </div>
+    <div class="field"><label>匯入朋友的分享碼</label><textarea id="shareIn" placeholder="貼上 JEJU1.…"></textarea></div>
+    <div class="modal-actions">
+      <button class="sm-btn" onclick="closeModal('shareModal')">關閉</button>
+      <button class="sm-btn primary" onclick="importShare()">匯入</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
 
 <script>
 var SPOTS=[
@@ -249,7 +357,7 @@ var SPOTS=[
 {id:23,en:"Museum is Alive",kr:"살아있는 박물관",zh:"活的博物館",bz:"入場票",be:"Admission Ticket",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0888",nv:"https://naver.me/xcnauiXo",gl:"https://maps.app.goo.gl/TENsShLUa4KWmm9EA",free:false,origStar:false},
 {id:24,en:"Tangerine Cart",kr:"감귤카트",zh:"橘子卡丁車",bz:"節省₩15,100 / ₩25,000→₩9,900",be:"Save ₩15,100",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0987",nv:"https://naver.me/xs3GvJ8x",gl:"https://maps.app.goo.gl/mKgtFv9mkeLrEWjJ6",free:false,origStar:false},
 {id:25,en:"Running Man Experience",kr:"런닝맨 체험관",zh:"Running Man 體驗館",bz:"節省₩8,000 / 60分₩19,000→₩12,000",be:"Save ₩8,000",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0888",nv:"https://naver.me/G4Wodv1Q",gl:"https://maps.app.goo.gl/w3RryYgpzWY4akbg6",free:false,origStar:false},
-{id:26,en:"Lotte Hotel Buffet",kr:"롯데호텔 제주 라세느",zh:"樂天飯店自助餐",bz:"自助餐8折",be:"20% OFF Lotte Hotel buffet",lat:33.2486873,lon:126.4105139,h:"Brunch 12:00~14:00 / Dinner 18:00~21:30",tel:"064-731-4266",nv:"https://naver.me/xXwVsbwv",gl:"https://maps.app.goo.gl/mcnUREZtGV6XAX2B6",free:false,origStar:false},
+{id:26,en:"Lotte Hotel Buffet",kr:"롯데호텔 제주 라세느",zh:"樂天飯店自助餐",bz:"自助餐8折",be:"20% OFF Lotte Hotel buffet",lat:33.2486873,lon:126.4105139,h:"12:00~14:00 / 18:00~21:30",tel:"064-731-4266",nv:"https://naver.me/xXwVsbwv",gl:"https://maps.app.goo.gl/mcnUREZtGV6XAX2B6",free:false,origStar:false},
 {id:27,en:"Chocolate Land",kr:"초콜릿랜드",zh:"巧克力樂園",bz:"入場票（價值₩3,000）",be:"Admission (worth ₩3,000)",lat:33.2494493,lon:126.4135038,h:"10:00~18:00",tel:"064-738-1197",nv:"https://naver.me/FswfosX4",gl:"https://share.google/acnYXJn5C6CaytWN1",free:true,origStar:false},
 {id:28,en:"Cafe Brief",kr:"브리프 애월",zh:"Cafe Brief 咖啡廳",bz:"美式/冰茶/徽章2種（3選1）",be:"Americano/Iced tea/Wappen",lat:33.4583156,lon:126.4156694,h:"10:00~18:00",tel:"064-711-5507",nv:"https://naver.me/xDJu7uFE",gl:"https://maps.app.goo.gl/s4ieYpPn8UcU8vhcA",free:true,origStar:false},
 {id:29,en:"IVAR Garden",kr:"아이바가든",zh:"IVAR Garden 光影庭園",bz:"門票（價值₩15,000）/ 飲品8折",be:"Admission (₩15,000) / 20% off drinks",lat:33.4339332,lon:126.4215301,h:"09:00~19:00",tel:"064-752-1000",nv:"https://naver.me/FMTpfW6t",gl:"https://share.google/mhU82rkXXeDWTy8Zm",free:true,origStar:false},
@@ -309,139 +417,398 @@ s.textContent='.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-
 document.head.appendChild(s);
 })();
 
-/* Star management */
-var starSet;
-function loadStars(){
-  try{var d=localStorage.getItem('jeju-ap-stars');if(d)return new Set(JSON.parse(d));}catch(e){}
-  return new Set(SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id}));
-}
-function saveStars(){try{localStorage.setItem('jeju-ap-stars',JSON.stringify(Array.from(starSet)));}catch(e){}}
-function isStarred(id){return starSet.has(id);}
-starSet=loadStars();
+/* ---------- State ---------- */
+var AIRPORT={id:'air',zh:'濟州國際機場',kr:'제주국제공항',en:'Jeju International Airport',lat:33.5104,lon:126.4914,h:'',addr:'',note:'',custom:true,air:true,stay:0};
+var DEFAULT_DAYS=[
+  {date:'2026-11-06',start:'11:30',note:'台北 07:50 出發 → 濟州 10:45 抵達，取車後出發'},
+  {date:'2026-11-07',start:'09:00',note:''},
+  {date:'2026-11-08',start:'09:00',note:''},
+  {date:'2026-11-09',start:'09:00',note:''},
+  {date:'2026-11-10',start:'09:00',note:''},
+  {date:'2026-11-11',start:'07:00',note:'10:10 起飛 → 台北 11:25，建議 08:30 前抵達機場還車'}
+];
+var state={stars:[],custom:[],days:[]};
+var STORE_KEY='jeju-ap-v2';
 
-/* Init map */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
+function deepCopy(o){return JSON.parse(JSON.stringify(o));}
+
+function defaultDays(){return DEFAULT_DAYS.map(function(d){return{date:d.date,start:d.start,note:d.note,items:[]};});}
+function load(){
+  try{
+    var raw=localStorage.getItem(STORE_KEY);
+    if(raw){var o=JSON.parse(raw);if(o&&o.days){state=o;return;}}
+    var old=localStorage.getItem('jeju-ap-stars');
+    if(old){state.stars=JSON.parse(old);}
+    else state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});
+  }catch(e){state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});}
+  state.custom=state.custom||[];
+  state.days=state.days&&state.days.length?state.days:defaultDays();
+}
+function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){}}
+load();
+if(!state.days||!state.days.length) state.days=defaultDays();
+
+function isStarred(key){return state.stars.indexOf(key)>=0;}
+function keyOf(s){return s.custom?s.id:s.id;}
+function getSpot(key){
+  if(key==='air') return AIRPORT;
+  if(typeof key==='string'&&key.charAt(0)==='c'){for(var i=0;i<state.custom.length;i++) if(state.custom[i].id===key) return state.custom[i];return null;}
+  for(var j=0;j<SPOTS.length;j++) if(SPOTS[j].id===key) return SPOTS[j];
+  return null;
+}
+function allSpots(){return SPOTS.concat(state.custom);}
+function catOf(s){if(isStarred(s.id)) return 'star';if(s.custom) return 'custom';return s.free?'free':'discount';}
+function dayLabel(d,i){
+  var dt=new Date(d.date+'T00:00:00');var wd=['日','一','二','三','四','五','六'][dt.getDay()];
+  return {top:'Day '+(i+1),sub:(dt.getMonth()+1)+'/'+dt.getDate()+'（'+wd+'）'};
+}
+function daysOfSpot(key){var r=[];state.days.forEach(function(d,i){d.items.forEach(function(it){if(it.key===key) r.push(i);});});return r;}
+
+/* ---------- Map ---------- */
 var map=L.map('map',{zoomControl:true}).setView([33.4,126.56],10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'Leaflet | OpenStreetMap',maxZoom:18}).addTo(map);
+var markers={};var activeKey=null;var routeLayer=L.layerGroup().addTo(map);
 
-var markers={};
-var activeSpotId=null;
-
-function createIcon(s){
-  var cls=isStarred(s.id)?'marker-star':s.free?'marker-free':'marker-discount';
-  return L.divIcon({className:'',html:'<div class="custom-marker '+cls+'"><span>'+s.id+'</span></div>',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-30]});
+function iconFor(s,order){
+  var cls=s.air?'marker-air':isStarred(s.id)?'marker-star':s.custom?'marker-custom':s.free?'marker-free':'marker-discount';
+  var label=s.air?'✈':s.custom?'✚':s.id;
+  var badge=order?'<span class="order-badge">'+order+'</span>':'';
+  return L.divIcon({className:'',html:'<div class="custom-marker '+cls+'" style="position:relative"><span>'+label+'</span>'+badge+'</div>',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-30]});
 }
-
+function dayChips(key){
+  return state.days.map(function(d,i){var l=dayLabel(d,i);return '<button class="day-chip" onclick="addToDay(\''+String(key).replace(/'/g,"\\'")+'\','+i+')">'+l.top+' '+l.sub+'</button>';}).join('');
+}
 function popupContent(s){
   var starred=isStarred(s.id);
-  var starBtnClass=starred?'popup-star-btn remove':'popup-star-btn add';
-  var starBtnText=starred?'移出必去':'加入必去';
-  var starIcon=starred?'&#9733;':'&#9734;';
-  var glLink=s.gl?'<a href="'+s.gl+'" target="_blank" rel="noopener" class="map-link google">G Google Map</a>':'';
-  return '<div class="popup-inner"><div class="popup-title">'+s.zh+(starred?' <span style="color:var(--star)">&#9733;</span>':'')+'</div><div class="popup-sub">'+s.kr+' &middot; '+s.en+'</div><div class="popup-benefit">'+s.bz+'</div><div class="popup-meta"><div>&#128339; '+s.h+'</div><div>&#128222; '+s.tel+'</div></div><div class="popup-links"><a href="'+s.nv+'" target="_blank" rel="noopener" class="map-link naver">N Naver Map</a>'+glLink+'<button class="'+starBtnClass+'" onclick="toggleStar('+s.id+')">'+starIcon+' '+starBtnText+'</button></div></div>';
+  var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
+  var links='';
+  if(s.nv) links+='<a href="'+esc(s.nv)+'" target="_blank" rel="noopener" class="map-link naver">N Naver</a>';
+  if(s.gl) links+='<a href="'+esc(s.gl)+'" target="_blank" rel="noopener" class="map-link google">G Google</a>';
+  if(s.custom&&!s.air) links+='<button class="map-link edit" onclick="openCustomForm(\''+s.id+'\')">✎ 編輯</button>';
+  var sub=s.custom?(s.addr?esc(s.addr):'自訂景點（非 Pass）'):esc(s.kr)+' &middot; '+esc(s.en);
+  var benefit=s.custom?(s.note?'<div class="popup-benefit">'+esc(s.note)+'</div>':''):'<div class="popup-benefit">'+esc(s.bz)+'</div>';
+  var meta='';if(s.h) meta+='<div>&#128339; '+esc(s.h)+'</div>';if(s.tel) meta+='<div>&#128222; '+esc(s.tel)+'</div>';
+  var ds=daysOfSpot(s.id).map(function(i){return 'Day'+(i+1)}).join(', ');
+  if(ds) meta+='<div>📅 已排入 '+ds+'</div>';
+  var starBtn=s.air?'':'<button class="pbtn '+(starred?'rm-star':'add-star')+'" onclick="toggleStar('+kq+')">'+(starred?'&#9733; 移出必去':'&#9734; 加入必去')+'</button>';
+  return '<div class="popup-inner"><div class="popup-title">'+esc(s.zh)+(starred?' <span style="color:var(--star)">&#9733;</span>':'')+'</div><div class="popup-sub">'+sub+'</div>'+benefit+'<div class="popup-meta">'+meta+'</div><div class="popup-links">'+links+starBtn+'<button class="pbtn to-day" onclick="showDayPicker(this,'+kq+')">＋加入行程</button></div><div id="pp-daypick"></div></div>';
 }
+function showDayPicker(btn,key){
+  var box=document.getElementById('pp-daypick');if(!box) return;
+  box.innerHTML=box.innerHTML?'':'<div class="day-picker"><span class="lbl">選擇加入哪一天：</span>'+dayChips(key)+'</div>';
+}
+function ensureMarker(s){
+  if(s.lat==null||s.lon==null) return null;
+  var m=markers[s.id];
+  if(!m){m=L.marker([s.lat,s.lon],{icon:iconFor(s)});m.bindPopup(popupContent(s),{maxWidth:300});m.on('click',function(){highlightCard(s.id)});markers[s.id]=m;}
+  else{m.setLatLng([s.lat,s.lon]);m.setIcon(iconFor(s));m.getPopup().setContent(popupContent(s));}
+  return m;
+}
+SPOTS.forEach(function(s){ensureMarker(s).addTo(map);});
+ensureMarker(AIRPORT);
+function refreshMarker(key){var s=getSpot(key);if(s&&markers[key]){markers[key].setIcon(iconFor(s));markers[key].getPopup().setContent(popupContent(s));}}
 
-SPOTS.forEach(function(s){
-  var m=L.marker([s.lat,s.lon],{icon:createIcon(s)}).addTo(map);
-  m.bindPopup(popupContent(s),{maxWidth:300});
-  m.on('click',function(){highlightCard(s.id)});
-  markers[s.id]=m;
-});
-
-var spotList=document.getElementById('spotList');
-var searchInput=document.getElementById('search');
-var countBadge=document.getElementById('count');
+/* ---------- Spots pane ---------- */
+var spotList=document.getElementById('spotList'),searchInput=document.getElementById('search'),countBadge=document.getElementById('count');
 var currentFilter='all';
 
-function getCategory(s){
-  if(isStarred(s.id)) return 'star';
-  return s.free?'free':'discount';
-}
-
-function renderList(filter,query){
-  var filtered=SPOTS.slice();
-  if(filter==='star') filtered=filtered.filter(function(s){return isStarred(s.id)});
-  else if(filter==='free') filtered=filtered.filter(function(s){return s.free&&!isStarred(s.id)});
-  else if(filter==='discount') filtered=filtered.filter(function(s){return !s.free&&!isStarred(s.id)});
-  if(query){
-    var q=query.toLowerCase();
-    filtered=filtered.filter(function(s){
-      return s.kr.toLowerCase().indexOf(q)>=0||s.zh.toLowerCase().indexOf(q)>=0||
-      s.en.toLowerCase().indexOf(q)>=0||s.bz.toLowerCase().indexOf(q)>=0||s.be.toLowerCase().indexOf(q)>=0;
-    });
-  }
-  countBadge.textContent=filtered.length+' spots';
-  spotList.innerHTML=filtered.map(function(s){
-    var cat=getCategory(s);
-    var starred=isStarred(s.id);
+function renderList(){
+  var q=searchInput.value.toLowerCase();
+  var list=allSpots().filter(function(s){
+    var c=catOf(s);
+    if(currentFilter!=='all'&&c!==currentFilter) return false;
+    if(!q) return true;
+    return [s.zh,s.kr,s.en,s.bz,s.be,s.addr,s.note].some(function(f){return f&&String(f).toLowerCase().indexOf(q)>=0;});
+  });
+  countBadge.textContent=list.length;
+  document.getElementById('logoCount').textContent=(SPOTS.length+state.custom.length)+' Spots';
+  document.getElementById('tabSpotsN').textContent=SPOTS.length+state.custom.length;
+  spotList.innerHTML=list.map(function(s){
+    var starred=isStarred(s.id);var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
     var tags='';
     if(starred) tags+='<span class="tag tag-star">必去</span>';
-    if(s.free) tags+='<span class="tag tag-free">免費</span>';
-    else tags+='<span class="tag tag-discount">折扣</span>';
-    var starBtnCls=starred?'star-btn starred':'star-btn';
-    var starChar=starred?'&#9733;':'&#9734;';
-    return '<div class="spot-card'+(activeSpotId===s.id?' active':'')+'" data-id="'+s.id+'"><div class="spot-top"><div><div class="spot-name">'+s.zh+'</div><div class="spot-tags">'+tags+'</div><div class="spot-sub">'+s.kr+' &middot; '+s.en+'</div><div class="spot-benefit">'+s.bz+'</div></div><button class="'+starBtnCls+'" onclick="event.stopPropagation();toggleStar('+s.id+')" title="'+(starred?'移出必去':'加入必去')+'">'+starChar+'</button></div><div class="spot-links"><a href="'+s.nv+'" target="_blank" rel="noopener" class="map-link naver" onclick="event.stopPropagation()">N Naver</a>'+(s.gl?'<a href="'+s.gl+'" target="_blank" rel="noopener" class="map-link google" onclick="event.stopPropagation()">G Google</a>':'')+'</div></div>';
+    if(s.custom) tags+='<span class="tag tag-custom">非Pass</span>';
+    else tags+=s.free?'<span class="tag tag-free">免費</span>':'<span class="tag tag-discount">折扣</span>';
+    daysOfSpot(s.id).forEach(function(i){tags+='<span class="tag tag-day">Day'+(i+1)+'</span>';});
+    var sub=s.custom?esc(s.addr||'自訂景點'):esc(s.kr)+' &middot; '+esc(s.en);
+    var ben=s.custom?esc(s.note||(s.h?'🕐 '+s.h:'')):esc(s.bz);
+    var links='';
+    if(s.nv) links+='<a href="'+esc(s.nv)+'" target="_blank" rel="noopener" class="map-link naver" onclick="event.stopPropagation()">N Naver</a>';
+    if(s.gl) links+='<a href="'+esc(s.gl)+'" target="_blank" rel="noopener" class="map-link google" onclick="event.stopPropagation()">G Google</a>';
+    if(s.custom) links+='<button class="map-link edit" onclick="event.stopPropagation();openCustomForm(\''+s.id+'\')">✎ 編輯</button>';
+    return '<div class="spot-card'+(activeKey===s.id?' active':'')+'" data-key="'+esc(s.id)+'"><div class="spot-top"><div><div class="spot-name">'+esc(s.zh)+'</div><div class="spot-tags">'+tags+'</div><div class="spot-sub">'+sub+'</div><div class="spot-benefit">'+ben+'</div></div>'+
+      '<button class="icon-btn add" title="加入行程" onclick="event.stopPropagation();toggleCardPicker(this,'+kq+')">＋</button>'+
+      '<button class="icon-btn'+(starred?' starred':'')+'" title="'+(starred?'移出必去':'加入必去')+'" onclick="event.stopPropagation();toggleStar('+kq+')">'+(starred?'&#9733;':'&#9734;')+'</button></div>'+
+      '<div class="spot-links">'+links+'</div><div class="card-daypick"></div></div>';
   }).join('');
+  if(!list.length) spotList.innerHTML='<div class="itin-empty">沒有符合的景點</div>';
 
-  SPOTS.forEach(function(s){
-    var vis=filtered.some(function(f){return f.id===s.id});
-    if(vis) markers[s.id].addTo(map);
-    else map.removeLayer(markers[s.id]);
+  allSpots().forEach(function(s){
+    var m=markers[s.id];if(!m) return;
+    var vis=list.some(function(f){return f.id===s.id});
+    if(vis){if(!map.hasLayer(m)) m.addTo(map);}else if(map.hasLayer(m)) map.removeLayer(m);
   });
 
   spotList.querySelectorAll('.spot-card').forEach(function(card){
     card.addEventListener('click',function(){
-      var id=parseInt(card.dataset.id);
-      var spot=SPOTS.find(function(s){return s.id===id});
-      if(spot){map.flyTo([spot.lat,spot.lon],14,{duration:0.8});markers[id].openPopup();highlightCard(id);}
+      var key=card.dataset.key;if(/^\d+$/.test(key)) key=parseInt(key);
+      flyTo(key);
     });
   });
 }
-
-function highlightCard(id){
-  activeSpotId=id;
-  spotList.querySelectorAll('.spot-card').forEach(function(c){
-    c.classList.toggle('active',parseInt(c.dataset.id)===id);
-  });
-  var ac=spotList.querySelector('.spot-card[data-id="'+id+'"]');
-  if(ac) ac.scrollIntoView({behavior:'smooth',block:'nearest'});
+function flyTo(key){
+  var s=getSpot(key);if(!s) return;
+  if(s.lat!=null&&markers[key]){if(!map.hasLayer(markers[key])) markers[key].addTo(map);map.flyTo([s.lat,s.lon],14,{duration:0.8});markers[key].openPopup();}
+  highlightCard(key);
 }
-
-function toggleStar(id){
-  if(starSet.has(id)) starSet.delete(id);
-  else starSet.add(id);
-  saveStars();
-  var spot=SPOTS.find(function(s){return s.id===id});
-  if(spot){
-    markers[id].setIcon(createIcon(spot));
-    markers[id].getPopup().setContent(popupContent(spot));
-  }
-  renderList(currentFilter,searchInput.value);
+function toggleCardPicker(btn,key){
+  var card=btn.closest('.spot-card');var box=card.querySelector('.card-daypick');
+  box.innerHTML=box.innerHTML?'':'<div class="day-picker"><span class="lbl">加入哪一天？</span>'+dayChips(key)+'</div>';
 }
-
+function highlightCard(key){
+  activeKey=key;
+  spotList.querySelectorAll('.spot-card').forEach(function(c){var k=c.dataset.key;if(/^\d+$/.test(k)) k=parseInt(k);c.classList.toggle('active',k===key);});
+  var ac=spotList.querySelector('.spot-card.active');if(ac) ac.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function toggleStar(key){
+  var i=state.stars.indexOf(key);if(i>=0) state.stars.splice(i,1);else state.stars.push(key);
+  save();refreshMarker(key);renderList();renderItin();
+}
 function resetStars(){
-  starSet=new Set(SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id}));
-  saveStars();
-  SPOTS.forEach(function(s){markers[s.id].setIcon(createIcon(s));markers[s.id].getPopup().setContent(popupContent(s));});
-  renderList(currentFilter,searchInput.value);
+  if(!confirm('把「必去」清單還原成原始預設？（不影響行程與自訂景點）')) return;
+  state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});
+  save();allSpots().forEach(function(s){refreshMarker(s.id)});renderList();renderItin();toast('已還原必去清單');
 }
-
 document.querySelectorAll('.filter-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn'});
-    var f=btn.dataset.filter;
-    currentFilter=f;
-    if(f==='free') btn.classList.add('active-free');
-    else if(f==='discount') btn.classList.add('active-discount');
-    else if(f==='star') btn.classList.add('active-star');
-    else btn.classList.add('active');
-    renderList(f,searchInput.value);
+    currentFilter=btn.dataset.filter;
+    btn.classList.add(currentFilter==='all'?'active':'active-'+currentFilter);
+    renderList();
+  });
+});
+searchInput.addEventListener('input',renderList);
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+    document.querySelectorAll('.pane').forEach(function(x){x.classList.remove('active')});
+    t.classList.add('active');document.getElementById('pane-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='itin') drawRoute(); else routeLayer.clearLayers();
+    setTimeout(function(){map.invalidateSize()},50);
   });
 });
 
-searchInput.addEventListener('input',function(){renderList(currentFilter,searchInput.value)});
-renderList('all','');
-var bounds=L.latLngBounds(SPOTS.map(function(s){return[s.lat,s.lon]}));
-map.fitBounds(bounds,{padding:[30,30]});
+/* ---------- Itinerary ---------- */
+var curDay=0;
+function toMin(t){if(!t||!/^\d{1,2}:\d{2}$/.test(t)) return null;var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function fmt(m){if(m==null) return '--:--';var d=Math.floor(m/1440);m=((m%1440)+1440)%1440;var h=Math.floor(m/60),mi=m%60;return (h<10?'0':'')+h+':'+(mi<10?'0':'')+mi+(d>0?' (+'+d+'d)':'');}
+function distKm(a,b){var R=6371,dl=(b.lat-a.lat)*Math.PI/180,dn=(b.lon-a.lon)*Math.PI/180;var x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x));}
+function estTravel(a,b){
+  if(!a||!b||a.lat==null||b.lat==null) return null;
+  var km=distKm(a,b)*1.3;var min=Math.round(km/40*60);
+  if(km<0.3) return 0;
+  return Math.max(5,Math.ceil(min/5)*5);
+}
+function parseHours(h){
+  if(!h) return null;var m=h.match(/(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})/);if(!m) return null;
+  return {o:parseInt(m[1])*60+parseInt(m[2]),c:parseInt(m[3])*60+parseInt(m[4])};
+}
+function computeDay(d){
+  var cur=toMin(d.start);var prev=null;var lastPassArrive=null;var totalTravel=0;
+  return d.items.map(function(it,idx){
+    var s=getSpot(it.key);var est=idx>0?estTravel(prev,s):0;
+    var travel=(it.travel!=null&&it.travel!=='')?parseInt(it.travel):(est==null?0:est);
+    if(idx===0) travel=0;
+    totalTravel+=travel;
+    var arrive=cur==null?null:cur+travel;
+    var stay=it.stay!=null?parseInt(it.stay):(s&&s.stay!=null?s.stay:60);
+    var depart=arrive==null?null:arrive+stay;
+    var warns=[];
+    if(s){
+      var hh=parseHours(s.h);
+      if(hh&&arrive!=null){var am=((arrive%1440)+1440)%1440;if(am<hh.o||am>hh.c) warns.push('⚠ 非營業時間 '+s.h);}
+      if(!s.custom&&arrive!=null){if(lastPassArrive!=null&&arrive-lastPassArrive<60) warns.push('⏱ 與上個 Pass 景點間隔 <60 分');lastPassArrive=arrive;}
+      if(idx>0&&est==null&&it.travel==null) warns.push('無座標，車程未估');
+    }
+    var r={it:it,s:s,est:est,travel:travel,arrive:arrive,depart:depart,stay:stay,warns:warns,totalTravel:totalTravel};
+    cur=depart;prev=s;return r;
+  });
+}
+function renderDayTabs(){
+  var el=document.getElementById('dayTabs');
+  el.innerHTML=state.days.map(function(d,i){var l=dayLabel(d,i);return '<button class="day-tab'+(i===curDay?' active':'')+'" onclick="selectDay('+i+')">'+l.top+'<small>'+l.sub+' · '+d.items.length+'點</small></button>';}).join('')+
+    '<button class="day-tab add" onclick="addDay()">＋<small>新增天</small></button>';
+  var n=state.days.reduce(function(a,d){return a+d.items.length},0);document.getElementById('tabItinN').textContent=n||'';
+}
+function selectDay(i){curDay=i;renderItin();drawRoute(true);}
+function addDay(){
+  var last=state.days[state.days.length-1];var dt=last?new Date(last.date+'T00:00:00'):new Date('2026-11-06T00:00:00');
+  if(last) dt.setDate(dt.getDate()+1);
+  var iso=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  state.days.push({date:iso,start:'09:00',note:'',items:[]});curDay=state.days.length-1;save();renderItin();renderList();
+}
+function removeDay(i){
+  if(state.days.length<=1){toast('至少保留一天');return;}
+  if(!confirm('刪除 Day '+(i+1)+'？當天排的景點會一起移除。')) return;
+  state.days.splice(i,1);curDay=Math.min(curDay,state.days.length-1);save();renderItin();renderList();drawRoute(true);
+}
+function updateDay(i,field,val){state.days[i][field]=val;save();renderItin();}
+function clearDay(i){if(!confirm('清空 Day '+(i+1)+' 的所有景點？')) return;state.days[i].items=[];save();renderItin();renderList();drawRoute(true);}
+function addToDay(key,i){
+  if(/^\d+$/.test(String(key))) key=parseInt(key);
+  var s=getSpot(key);if(!s) return;
+  state.days[i].items.push({key:key,stay:s.stay!=null?s.stay:60,travel:null});
+  save();renderList();renderItin();refreshMarker(key);
+  map.closePopup();toast('已加入 Day '+(i+1)+'：'+s.zh);
+}
+function removeItem(di,idx){var k=state.days[di].items[idx].key;state.days[di].items.splice(idx,1);save();renderItin();renderList();refreshMarker(k);drawRoute(true);}
+function moveItem(di,idx,dir){var arr=state.days[di].items;var j=idx+dir;if(j<0||j>=arr.length) return;var t=arr[idx];arr[idx]=arr[j];arr[j]=t;save();renderItin();drawRoute(true);}
+function setItem(di,idx,field,val){var it=state.days[di].items[idx];it[field]=(val===''?null:parseInt(val));if(field==='stay'&&it.stay==null) it.stay=0;save();renderItin();}
+function resetTravel(di,idx){state.days[di].items[idx].travel=null;save();renderItin();}
+function moveItemTo(di,from,to){var arr=state.days[di].items;if(from===to) return;var it=arr.splice(from,1)[0];arr.splice(to,0,it);save();renderItin();drawRoute(true);}
+
+function renderItin(){
+  renderDayTabs();
+  if(curDay>=state.days.length) curDay=state.days.length-1;
+  var d=state.days[curDay];var rows=computeDay(d);var l=dayLabel(d,curDay);
+  var last=rows.length?rows[rows.length-1]:null;
+  var head=document.getElementById('dayHead');
+  head.innerHTML='<label>日期</label><input type="date" value="'+esc(d.date)+'" onchange="updateDay('+curDay+',\'date\',this.value)">'+
+    '<label>出發時間</label><input type="time" value="'+esc(d.start)+'" onchange="updateDay('+curDay+',\'start\',this.value)">'+
+    '<label>備註</label><textarea onchange="updateDay('+curDay+',\'note\',this.value)" placeholder="航班、住宿、提醒…">'+esc(d.note||'')+'</textarea>'+
+    '<div class="day-summary"><span>📍 '+rows.length+' 個景點</span><span>🚗 總車程 '+(last?last.totalTravel:0)+' 分</span><span>🏁 結束約 '+(last?fmt(last.depart):'--:--')+'</span></div>'+
+    '<div class="row-actions"><button class="sm-btn" onclick="fitDay()">在地圖上顯示</button><button class="sm-btn" onclick="clearDay('+curDay+')">清空當天</button><button class="sm-btn danger" onclick="removeDay('+curDay+')">刪除這天</button></div>';
+  var list=document.getElementById('itinList');
+  if(!rows.length){list.innerHTML='<div class="itin-empty">這天還沒有景點。<br>到「景點」分頁按卡片右邊的「＋」，或在地圖 popup 點「＋加入行程」。<br>提示：Day 1 可以先加「濟州國際機場」當起點。<br><button class="sm-btn" style="margin-top:10px" onclick="addToDay(\'air\','+curDay+')">＋ 加入機場為起點</button></div>';return;}
+  var html='';
+  rows.forEach(function(r,idx){
+    var s=r.s;var kq=s?(typeof s.id==='string'?"'"+s.id+"'":s.id):null;
+    if(idx>0){
+      var overridden=r.it.travel!=null&&r.it.travel!=='';
+      html+='<div class="travel-row"><span class="line"></span>🚗 車程 <input type="number" min="0" step="5" value="'+r.travel+'" onchange="setItem('+curDay+','+idx+',\'travel\',this.value)"> 分'+
+        (r.est!=null?'<span class="est">（估 '+r.est+' 分'+(overridden?'，<button class="reset-tr" onclick="resetTravel('+curDay+','+idx+')">還原估算</button>':'')+'）</span>':'<span class="est">（無法估算）</span>')+'</div>';
+    }
+    var tags='';
+    if(s){if(s.air) tags+='<span class="tag" style="background:#475569;color:#fff">機場</span>';else if(s.custom) tags+='<span class="tag tag-custom">非Pass</span>';else tags+=isStarred(s.id)?'<span class="tag tag-star">必去</span>':s.free?'<span class="tag tag-free">免費</span>':'<span class="tag tag-discount">折扣</span>';}
+    r.warns.forEach(function(w){tags+='<span class="warn">'+w+'</span>';});
+    html+='<div class="itin-item" draggable="true" data-idx="'+idx+'">'+
+      '<span class="grip" title="拖曳排序">⋮⋮</span><div class="num">'+(idx+1)+'</div><div class="body">'+
+      '<div class="name" onclick="flyTo('+kq+')">'+(s?esc(s.zh):'（已刪除的景點）')+'</div>'+
+      '<div class="time"><b>'+fmt(r.arrive)+'</b> → '+fmt(r.depart)+(s&&s.h?' <span style="color:var(--text-muted);font-size:11px">· 營業 '+esc(s.h)+'</span>':'')+'</div>'+
+      '<div class="meta">停留 <input type="number" min="0" step="5" value="'+r.stay+'" onchange="setItem('+curDay+','+idx+',\'stay\',this.value)"> 分 '+tags+'</div>'+
+      (s&&!s.custom?'<div class="meta" style="color:var(--text-secondary)">'+esc(s.bz)+'</div>':'')+
+      '</div><div class="ctrls"><button onclick="moveItem('+curDay+','+idx+',-1)" title="上移">▲</button><button onclick="moveItem('+curDay+','+idx+',1)" title="下移">▼</button><button class="rm" onclick="removeItem('+curDay+','+idx+')" title="移除">✕</button></div></div>';
+  });
+  list.innerHTML=html;
+  var dragFrom=null;
+  list.querySelectorAll('.itin-item').forEach(function(el){
+    el.addEventListener('dragstart',function(e){dragFrom=parseInt(el.dataset.idx);el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragend',function(){el.classList.remove('dragging');list.querySelectorAll('.drag-over').forEach(function(x){x.classList.remove('drag-over')});});
+    el.addEventListener('dragover',function(e){e.preventDefault();el.classList.add('drag-over');});
+    el.addEventListener('dragleave',function(){el.classList.remove('drag-over');});
+    el.addEventListener('drop',function(e){e.preventDefault();var to=parseInt(el.dataset.idx);if(dragFrom!=null) moveItemTo(curDay,dragFrom,to);dragFrom=null;});
+  });
+  if(document.getElementById('pane-itin').classList.contains('active')) drawRoute();
+}
+function drawRoute(fit){
+  routeLayer.clearLayers();
+  if(!document.getElementById('pane-itin').classList.contains('active')) return;
+  var d=state.days[curDay];if(!d) return;
+  var pts=[];
+  d.items.forEach(function(it,idx){var s=getSpot(it.key);if(s&&s.lat!=null){pts.push([s.lat,s.lon]);if(markers[s.id]){if(!map.hasLayer(markers[s.id])) markers[s.id].addTo(map);markers[s.id].setIcon(iconFor(s,idx+1));}}});
+  allSpots().concat([AIRPORT]).forEach(function(s){if(markers[s.id]&&!d.items.some(function(it){return it.key===s.id})) markers[s.id].setIcon(iconFor(s));});
+  if(pts.length>1) L.polyline(pts,{color:'#2563EB',weight:3,opacity:0.75,dashArray:'6 6'}).addTo(routeLayer);
+  if(fit&&pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:13});
+}
+function fitDay(){drawRoute(true);}
+
+/* ---------- Custom spots ---------- */
+var picking=false;
+function openCustomForm(id){
+  var s=id?getSpot(id):null;
+  document.getElementById('customTitle').textContent=s?'編輯自訂景點':'新增自訂景點（非 Pass）';
+  document.getElementById('cId').value=s?s.id:'';
+  document.getElementById('cName').value=s?s.zh:'';
+  document.getElementById('cAddr').value=s?(s.addr||''):'';
+  document.getElementById('cHours').value=s?(s.h||''):'';
+  document.getElementById('cStay').value=s&&s.stay!=null?s.stay:60;
+  document.getElementById('cNote').value=s?(s.note||''):'';
+  document.getElementById('cCoord').value=s&&s.lat!=null?s.lat.toFixed(6)+', '+s.lon.toFixed(6):'';
+  document.getElementById('cDelete').style.display=s?'':'none';
+  updateCoordHint();
+  document.getElementById('customModal').classList.add('open');
+}
+function parseCoord(v){var m=String(v).match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);if(!m) return null;var a=parseFloat(m[1]),b=parseFloat(m[2]);if(a<32||a>35||b<125||b>128) return null;return {lat:a,lon:b};}
+function updateCoordHint(){var c=parseCoord(document.getElementById('cCoord').value);var h=document.getElementById('coordHint');if(c){h.textContent='✓ 座標有效：'+c.lat.toFixed(5)+', '+c.lon.toFixed(5);h.className='coord-hint ok';}else{h.textContent=document.getElementById('cCoord').value?'座標格式看不懂，請用「緯度, 經度」，濟州約 33.x, 126.x':'沒有座標也可以儲存，只是不會顯示在地圖、也不估車程。';h.className='coord-hint';}}
+document.getElementById('cCoord').addEventListener('input',updateCoordHint);
+function startPick(){
+  picking=true;document.getElementById('customModal').classList.remove('open');document.getElementById('map').classList.add('placing');
+  toast('請在地圖上點一下要放的位置');
+}
+map.on('click',function(e){
+  if(!picking) return;picking=false;document.getElementById('map').classList.remove('placing');
+  document.getElementById('cCoord').value=e.latlng.lat.toFixed(6)+', '+e.latlng.lng.toFixed(6);updateCoordHint();
+  document.getElementById('customModal').classList.add('open');
+});
+function saveCustom(){
+  var name=document.getElementById('cName').value.trim();if(!name){toast('請輸入名稱');return;}
+  var id=document.getElementById('cId').value||('c'+Date.now());
+  var c=parseCoord(document.getElementById('cCoord').value);
+  var s=getSpot(id)||{id:id,custom:true};
+  s.zh=name;s.addr=document.getElementById('cAddr').value.trim();s.h=document.getElementById('cHours').value.trim();s.note=document.getElementById('cNote').value.trim();
+  s.stay=parseInt(document.getElementById('cStay').value)||0;s.lat=c?c.lat:null;s.lon=c?c.lon:null;s.kr='';s.en='';s.bz='';s.be='';s.custom=true;
+  if(!state.custom.some(function(x){return x.id===id})) state.custom.push(s);
+  save();
+  if(s.lat!=null){var m=ensureMarker(s);if(!map.hasLayer(m)) m.addTo(map);}else if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+  closeModal('customModal');renderList();renderItin();toast('已儲存：'+name);
+}
+function deleteCustom(){
+  var id=document.getElementById('cId').value;if(!id) return;
+  if(!confirm('刪除這個自訂景點？行程中的也會一併移除。')) return;
+  state.custom=state.custom.filter(function(x){return x.id!==id});
+  state.days.forEach(function(d){d.items=d.items.filter(function(it){return it.key!==id})});
+  var si=state.stars.indexOf(id);if(si>=0) state.stars.splice(si,1);
+  if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+  save();closeModal('customModal');renderList();renderItin();drawRoute();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m) m.classList.remove('open');});});
+
+/* ---------- Share ---------- */
+function encodeShare(){return 'JEJU1.'+btoa(unescape(encodeURIComponent(JSON.stringify(state))));}
+function decodeShare(code){
+  code=String(code).trim();if(code.indexOf('JEJU1.')!==0) throw new Error('bad');
+  var o=JSON.parse(decodeURIComponent(escape(atob(code.slice(6)))));
+  if(!o||!Array.isArray(o.days)||!Array.isArray(o.stars)) throw new Error('bad');
+  o.custom=Array.isArray(o.custom)?o.custom:[];return o;
+}
+function openShare(){document.getElementById('shareOut').value=encodeShare();document.getElementById('shareIn').value='';document.getElementById('shareModal').classList.add('open');}
+function copyShare(){
+  var ta=document.getElementById('shareOut');ta.select();
+  try{navigator.clipboard.writeText(ta.value).then(function(){toast('已複製分享碼')},function(){document.execCommand('copy');toast('已複製分享碼')});}catch(e){document.execCommand('copy');toast('已複製分享碼');}
+}
+function importShare(){
+  var v=document.getElementById('shareIn').value;if(!v.trim()){toast('請先貼上分享碼');return;}
+  var o;try{o=decodeShare(v);}catch(e){toast('分享碼格式不正確');return;}
+  if(!confirm('匯入會覆蓋你目前的必去清單、自訂景點與行程，確定？')) return;
+  Object.keys(markers).forEach(function(k){if(k.charAt(0)==='c'){map.removeLayer(markers[k]);delete markers[k];}});
+  state=o;save();curDay=0;
+  state.custom.forEach(function(s){if(s.lat!=null){var m=ensureMarker(s);m.addTo(map);}});
+  allSpots().forEach(function(s){refreshMarker(s.id)});
+  closeModal('shareModal');renderList();renderItin();toast('匯入完成');
+}
+
+/* ---------- Toast ---------- */
+var toastTimer;function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},2200);}
+
+/* ---------- Init ---------- */
+state.custom.forEach(function(s){if(s.lat!=null){var m=ensureMarker(s);m.addTo(map);}});
+renderList();renderItin();
+map.fitBounds(L.latLngBounds(SPOTS.map(function(s){return[s.lat,s.lon]})),{padding:[30,30]});
 setTimeout(function(){map.invalidateSize()},300);
 window.addEventListener('resize',function(){map.invalidateSize()});
-</script></html>
+</script>
+</html>
