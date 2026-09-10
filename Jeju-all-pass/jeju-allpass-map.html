@@ -1,0 +1,1577 @@
+<title>Jeju All-Pass Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Sans+KR:wght@400;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=240cec81b2d3475166c921f482a21d1f&libraries=services&autoload=false"></script>
+<style>
+:root {
+  --bg: #F7F8FA; --surface: #FFFFFF; --surface-hover: #F1F5F9;
+  --text: #1A2332; --text-secondary: #5A6578; --text-muted: #94A3B8;
+  --border: #E2E8F0; --accent: #2563EB; --accent-light: #DBEAFE;
+  --free: #059669; --free-bg: #D1FAE5; --discount: #D97706; --discount-bg: #FEF3C7;
+  --star: #E11D48; --star-bg: #FFE4E6; --custom: #7C3AED; --custom-bg: #EDE9FE;
+  --warn: #B45309; --warn-bg: #FEF3C7;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+  --radius: 10px;
+  --font: 'Noto Sans TC', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1220; --surface: #1A2332; --surface-hover: #243042;
+    --text: #E8ECF1; --text-secondary: #94A3B8; --text-muted: #64748B;
+    --border: #2D3B4E; --accent: #60A5FA; --accent-light: #1E3A5F;
+    --free: #34D399; --free-bg: #064E3B; --discount: #FBBF24; --discount-bg: #78350F;
+    --star: #FB7185; --star-bg: #4C0519; --custom: #A78BFA; --custom-bg: #3B2A6B;
+    --warn: #FCD34D; --warn-bg: #4A3208;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1220; --surface: #1A2332; --surface-hover: #243042;
+  --text: #E8ECF1; --text-secondary: #94A3B8; --text-muted: #64748B;
+  --border: #2D3B4E; --accent: #60A5FA; --accent-light: #1E3A5F;
+  --free: #34D399; --free-bg: #064E3B; --discount: #FBBF24; --discount-bg: #78350F;
+  --star: #FB7185; --star-bg: #4C0519; --custom: #A78BFA; --custom-bg: #3B2A6B;
+  --warn: #FCD34D; --warn-bg: #4A3208;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font); line-height: 1.5;
+  position: fixed; left: 0; top: 0; width: 100%; height: 100vh; height: 100dvh; overflow: hidden;
+  overscroll-behavior: none; -webkit-overflow-scrolling: auto;
+  display: flex; flex-direction: column;
+}
+button, input, select, textarea { font-family: var(--font); }
+button { cursor: pointer; }
+
+.leaflet-container { font-family: var(--font); }
+.leaflet-popup-content-wrapper { border-radius: var(--radius) !important; box-shadow: var(--shadow-lg) !important; padding: 0 !important; background: var(--surface) !important; color: var(--text) !important; }
+.leaflet-popup-content { margin: 0 !important; width: 280px !important; }
+.leaflet-popup-tip { background: var(--surface) !important; }
+.leaflet-popup-close-button { color: var(--text-muted) !important; font-size: 20px !important; top: 8px !important; right: 10px !important; }
+#map.placing { cursor: crosshair; }
+
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 8px 14px; display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; z-index: 1000; flex-wrap: wrap;
+}
+.logo { font-weight: 700; font-size: 17px; color: var(--accent); white-space: nowrap; letter-spacing: -0.02em; }
+.logo span { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.filters { display: flex; gap: 5px; flex-wrap: wrap; }
+.filter-btn {
+  font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-secondary); transition: all 0.15s; white-space: nowrap;
+}
+.filter-btn:hover { background: var(--surface-hover); }
+.filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.filter-btn.active-free { background: var(--free); color: #fff; border-color: var(--free); }
+.filter-btn.active-discount { background: var(--discount); color: #fff; border-color: var(--discount); }
+.filter-btn.active-star { background: var(--star); color: #fff; border-color: var(--star); }
+.filter-btn.active-custom { background: var(--custom); color: #fff; border-color: var(--custom); }
+.hdr-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.sm-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); white-space: nowrap;
+}
+.sm-btn:hover { background: var(--surface-hover); color: var(--text); }
+.sm-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sm-btn.primary:hover { opacity: 0.9; }
+.sm-btn.danger:hover { color: var(--star); border-color: var(--star); }
+.sync-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; cursor: pointer; white-space: nowrap; }
+.sync-chip.ok { background: var(--free-bg); color: var(--free); }
+.sync-chip.pending { background: var(--discount-bg); color: var(--discount); }
+.sync-chip.off { background: var(--surface-hover); color: var(--text-muted); }
+
+.main-area { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+#map { flex: 1; min-width: 0; min-height: 0; z-index: 1; }
+
+.sidebar {
+  width: 380px; flex-shrink: 0; background: var(--surface); position: relative; z-index: 1200;
+  border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+}
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab {
+  flex: 1; padding: 10px 0; font-size: 13px; font-weight: 700; text-align: center;
+  color: var(--text-muted); background: transparent; border: none; border-bottom: 2px solid transparent;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .n { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+.pane { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.pane.active { display: flex; }
+
+.sidebar-header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sidebar-header input[type=text] {
+  flex: 1; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; min-width: 0;
+}
+.sidebar-header input:focus { border-color: var(--accent); }
+.count-badge { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+
+.spot-list { flex: 1; overflow-y: auto; padding: 6px; min-height: 0; }
+.spot-card { padding: 10px 12px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all 0.15s; margin-bottom: 3px; position: relative; }
+.spot-card:hover { background: var(--surface-hover); border-color: var(--border); }
+.spot-card.active { background: var(--accent-light); border-color: var(--accent); }
+.spot-top { display: flex; align-items: flex-start; gap: 6px; }
+.spot-top > div:first-child { flex: 1; min-width: 0; }
+.spot-name { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: none; background: transparent;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s; color: var(--text-muted);
+}
+.icon-btn:hover { background: var(--star-bg); color: var(--star); transform: scale(1.12); }
+.icon-btn.starred { color: var(--star); }
+.icon-btn.add:hover { background: var(--accent-light); color: var(--accent); }
+.icon-btn.del { font-size: 13px; opacity: 0.55; }
+.icon-btn.del:hover { opacity: 1; background: var(--star-bg); }
+.tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+.tag-free { background: var(--free-bg); color: var(--free); }
+.tag-discount { background: var(--discount-bg); color: var(--discount); }
+.tag-star { background: var(--star-bg); color: var(--star); }
+.tag-custom { background: var(--custom-bg); color: var(--custom); }
+.tag-day { background: var(--accent-light); color: var(--accent); }
+.spot-tags { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+.spot-sub { font-size: 11px; color: var(--text-muted); line-height: 1.3; margin-top: 2px; }
+.spot-benefit { font-size: 12px; color: var(--text-secondary); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spot-links { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.map-link { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; border: none; }
+.map-link:hover { opacity: 0.8; }
+.map-link.naver { background: #03C75A; color: #fff; }
+.map-link.google { background: #4285F4; color: #fff; }
+.map-link.mini { padding: 1px 7px; font-size: 10px; }
+.map-link.app { background: #027a3a; }
+.map-link.kakao { background: #FEE500; color: #191919; }
+.ksearch { margin: 4px 6px 8px; padding: 9px 12px; border-radius: var(--radius); border: 1px dashed var(--border); background: var(--bg); font-size: 12px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.ksearch:hover { border-color: var(--accent); color: var(--accent); }
+.ksearch .k { background: #FEE500; color: #191919; font-weight: 800; border-radius: 4px; padding: 1px 5px; font-size: 11px; }
+.kres { padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); margin: 0 6px 6px; background: var(--surface); }
+.kres .nm { font-weight: 700; font-size: 13px; }
+.kres .ad { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.kres .ct { font-size: 10px; color: var(--custom); margin-top: 1px; }
+.kres .acts { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+.khead { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px 4px; font-size: 12px; color: var(--text-secondary); }
+.geo-btn { font-size: 11px; padding: 4px 9px; }
+.map-link.edit { background: var(--surface-hover); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.day-picker { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; padding: 8px; background: var(--bg); border-radius: 8px; }
+.day-picker .lbl { font-size: 11px; color: var(--text-muted); width: 100%; }
+.day-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); }
+.day-chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.popup-inner { padding: 14px 16px; }
+.popup-title { font-weight: 700; font-size: 15px; line-height: 1.3; margin-bottom: 4px; padding-right: 20px; color: var(--text); }
+.popup-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.popup-benefit { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; padding: 8px 10px; background: var(--bg); border-radius: 6px; }
+.popup-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6; }
+.popup-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.pbtn { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+.pbtn.add-star { background: var(--star-bg); color: var(--star); border-color: var(--star); }
+.pbtn.add-star:hover { background: var(--star); color: #fff; }
+.pbtn.rm-star { background: var(--surface); color: var(--text-muted); }
+.pbtn.to-day { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.pbtn.to-day:hover { background: var(--accent); color: #fff; }
+
+.pin { position: relative; width: 34px; height: 44px; }
+.pin svg.shape { position: absolute; left: 0; top: 0; width: 34px; height: 44px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.32)); }
+.pin svg.ic { position: absolute; left: 8px; top: 7px; width: 18px; height: 18px; fill: #fff; }
+.pin .order-badge { position: absolute; top: -6px; right: -7px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #1A2332; color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.leaflet-marker-icon.pin-wrap { background: none; border: none; }
+
+.dayonly-ctl button { font-family: var(--font); font-size: 12px; font-weight: 700; padding: 6px 10px; border: none; background: #fff; color: #1A2332; cursor: pointer; white-space: nowrap; border-radius: 4px; }
+.dayonly-ctl button.on { background: #2563EB; color: #fff; }
+.legend { display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--text-muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+
+/* Itinerary */
+.day-tabs { display: flex; gap: 4px; padding: 8px 10px; overflow-x: auto; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.day-tab { flex-shrink: 0; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 11px; font-weight: 700; color: var(--text-secondary); line-height: 1.2; text-align: center; }
+.day-tab small { display: block; font-weight: 500; color: var(--text-muted); font-size: 10px; }
+.day-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.day-tab.active small { color: rgba(255,255,255,0.8); }
+.day-tab.add { border-style: dashed; color: var(--text-muted); }
+.day-tab { position: relative; }
+.day-tab .day-x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); font-size: 10px; line-height: 16px; text-align: center; box-shadow: var(--shadow); }
+.day-tab .day-x:hover { color: #fff; background: var(--star); border-color: var(--star); }
+.pass-bar { padding: 6px 12px 8px; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; font-size: 12px; }
+.pass-head { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; padding: 2px 0; }
+.pass-head .ph { flex: 1; font-weight: 700; color: var(--text); font-size: 12px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pass-head .ph small { font-weight: 500; color: var(--text-muted); margin-left: 6px; }
+.pass-head .chev { font-size: 11px; color: var(--text-muted); transition: transform 0.2s; }
+.pass-head.open .chev { transform: rotate(180deg); }
+.pass-body { display: none; margin-top: 4px; }
+.pass-body.open { display: block; }
+.pass-status.compact { margin-top: 4px; padding: 4px 8px; font-size: 11px; }
+.pass-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 3px 0; }
+.pass-row .pn { font-weight: 700; color: var(--text); white-space: nowrap; }
+.pass-row .pw { color: var(--text-muted); font-size: 11px; }
+.pass-bar label { color: var(--text-muted); font-size: 11px; }
+.pass-bar select, .pass-bar input { font-size: 12px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.pass-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.pass-seg button { font-size: 12px; font-weight: 700; padding: 4px 9px; border: none; background: var(--surface); color: var(--text-secondary); }
+.pass-seg button.on { background: var(--accent); color: #fff; }
+.pass-x { border: none; background: none; color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+.pass-x:hover { color: var(--star); }
+.pass-status { margin-top: 6px; padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+.pass-status.ok { background: var(--free-bg); color: var(--free); }
+.pass-status.warn { background: var(--warn-bg); color: var(--warn); }
+.pass-status.bad { background: var(--star-bg); color: var(--star); }
+.pass-status.idle { background: var(--surface-hover); color: var(--text-secondary); }
+.warn.bad { background: var(--star-bg); color: var(--star); }
+.day-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; user-select: none; }
+.day-bar:hover { background: var(--surface-hover); }
+.day-bar .sum { flex: 1; display: flex; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.day-bar .sum b { color: var(--text); }
+.day-bar .chev { font-size: 11px; color: var(--text-muted); transition: transform 0.2s; }
+.day-bar.open .chev { transform: rotate(180deg); }
+.day-head { padding: 10px 12px; border-bottom: 1px solid var(--border); display: none; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 12px; flex-shrink: 0; }
+.day-head.open { display: grid; }
+.day-head label { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.day-head input, .day-head textarea { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 100%; }
+.day-head textarea { resize: vertical; min-height: 32px; }
+.day-head .row-actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.day-summary { grid-column: 1 / -1; font-size: 11px; color: var(--text-secondary); display: flex; gap: 10px; flex-wrap: wrap; }
+
+.quick-add { padding: 8px 10px; border-bottom: 1px solid var(--border); position: relative; display: flex; gap: 6px; flex-shrink: 0; }
+.quick-add input { flex: 1; min-width: 0; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
+.quick-add input:focus { border-color: var(--accent); }
+.qa-list { position: absolute; left: 10px; right: 10px; top: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); max-height: 260px; overflow-y: auto; z-index: 30; display: none; }
+.qa-item { padding: 7px 10px; font-size: 12px; cursor: pointer; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--border); }
+.qa-item:last-child { border-bottom: none; }
+.qa-item:hover { background: var(--surface-hover); }
+.qa-item .sub { color: var(--text-muted); font-size: 11px; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.itin-list { flex: 1; overflow-y: auto; padding: 8px; min-height: 0; }
+.itin-empty { padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.travel-row { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 22px; font-size: 11px; color: var(--text-muted); }
+.travel-row .line { width: 2px; height: 18px; background: var(--border); margin-left: 6px; border-radius: 2px; }
+.travel-row input { width: 44px; font-size: 11px; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); text-align: center; }
+.travel-row .est { color: var(--text-muted); }
+.travel-row .reset-tr { border: none; background: none; color: var(--accent); font-size: 10px; padding: 0 2px; }
+.itin-item { display: flex; gap: 8px; padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); position: relative; }
+.itin-item.dragging { opacity: 0.45; }
+.itin-item.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.itin-item .num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.itin-item .body { flex: 1; min-width: 0; }
+.itin-item .name { font-weight: 700; font-size: 13px; line-height: 1.3; cursor: pointer; }
+.itin-item .name:hover { color: var(--accent); }
+.itin-item .time { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.itin-item .time b { color: var(--accent); }
+.itin-item .meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.itin-item .meta input { width: 48px; font-size: 11px; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); text-align: center; }
+.itin-item .ctrls { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.itin-item .ctrls button { width: 24px; height: 22px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-size: 11px; padding: 0; }
+.itin-item .ctrls button:hover { background: var(--surface-hover); }
+.itin-item .ctrls button.rm:hover { color: var(--star); border-color: var(--star); }
+.itin-item .grip { cursor: grab; color: var(--text-muted); font-size: 14px; align-self: center; padding: 0 2px; user-select: none; }
+.warn { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 5000; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--surface); color: var(--text); border-radius: 14px; box-shadow: var(--shadow-lg); width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; padding: 18px 20px; }
+.modal h3 { margin: 0 0 6px; font-size: 16px; }
+.modal p { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.field input, .field textarea, .field select { width: 100%; font-size: 13px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.field textarea { resize: vertical; min-height: 60px; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+.field .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.coord-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.coord-hint.ok { color: var(--free); }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 6000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 768px) {
+  header { padding: 6px 10px; gap: 6px; row-gap: 6px; }
+  .logo { font-size: 15px; }
+  .logo span { display: none; }
+  .legend { display: none; }
+  #resetBtn { display: none; }
+  .hdr-right { margin-left: auto; gap: 5px; }
+  .sync-chip { font-size: 10px; padding: 3px 7px; }
+  .filters { order: 10; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 1px; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter-btn { flex-shrink: 0; padding: 5px 12px; font-size: 12px; }
+  .main-area { position: relative; display: block; }
+  #map { position: absolute; inset: 0; height: 100%; width: 100%; }
+  .sidebar {
+    position: absolute; left: 0; right: 0; bottom: 0; width: 100%;
+    height: 46%; border-left: none; border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.14);
+    transition: height 0.25s ease; z-index: 1200;
+  }
+  body.sheet-full .sidebar { height: calc(100% - 8px); }
+  body.sheet-min .sidebar { height: 92px; }
+  .sidebar .sheet-handle { display: flex; position: relative; }
+  .leaflet-bottom { bottom: 46%; transition: bottom 0.25s ease; }
+  body.sheet-full .leaflet-bottom { bottom: calc(100% - 8px); }
+  body.sheet-min .leaflet-bottom { bottom: 92px; }
+  .tab { padding: 9px 0; }
+  .sidebar-header { padding: 8px 10px; }
+  .sidebar-header input[type=text] { font-size: 14px; padding: 8px 10px; }
+  .icon-btn { width: 36px; height: 36px; font-size: 18px; }
+  .icon-btn.del { font-size: 15px; }
+  .spot-card { padding: 10px; }
+  .spot-name { font-size: 14px; }
+  .map-link { padding: 6px 11px; font-size: 12px; }
+  .pbtn { padding: 7px 12px; }
+  .leaflet-popup-content { width: 250px !important; max-height: var(--popmax, 50vh); overflow-y: auto; }
+  .day-head { grid-template-columns: auto 1fr; }
+  .day-head input, .day-head textarea { font-size: 14px; padding: 6px 8px; }
+  .quick-add input { font-size: 14px; padding: 8px 10px; }
+  .itin-item .grip { display: none; }
+  .itin-item .ctrls button { width: 32px; height: 30px; font-size: 13px; }
+  .itin-item .meta input, .travel-row input { width: 52px; font-size: 13px; padding: 3px 4px; }
+  .itin-item .time { font-size: 13px; }
+  .modal { padding: 16px; border-radius: 14px 14px 0 0; max-height: 90vh; }
+  .modal-bg { align-items: flex-end; padding: 0; }
+  .field input, .field textarea, .field select { font-size: 14px; }
+  .toast { bottom: auto; top: 12px; }
+  input, select, textarea { font-size: 16px !important; }
+  .itin-item .meta input, .travel-row input { width: 64px; }
+  .sidebar-header input[type=text], .quick-add input { padding: 7px 10px; }
+}
+.sheet-handle {
+  display: none; align-items: center; justify-content: center; gap: 10px;
+  padding: 6px 0 2px; cursor: pointer; flex-shrink: 0; user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.sheet-handle .bar { width: 40px; height: 5px; border-radius: 3px; background: var(--border); }
+.sheet-handle .hint { font-size: 10px; color: var(--text-muted); position: absolute; right: 12px; }
+.spot-list::-webkit-scrollbar, .itin-list::-webkit-scrollbar { width: 4px; }
+.spot-list::-webkit-scrollbar-thumb, .itin-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+
+<header>
+  <div class="logo">Jeju All-Pass <span id="logoCount">79 Spots</span></div>
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="star">必去</button>
+    <button class="filter-btn" data-filter="free">免費</button>
+    <button class="filter-btn" data-filter="discount">折扣</button>
+    <button class="filter-btn" data-filter="custom">非Pass</button>
+    <button class="filter-btn" data-filter="hidden" id="hiddenBtn" style="display:none">🗑 已刪除</button>
+  </div>
+  <div class="legend">
+    <span><span class="legend-dot" style="background:#E11D48"></span>必去</span>
+    <span><span class="legend-dot" style="background:#059669"></span>免費</span>
+    <span><span class="legend-dot" style="background:#D97706"></span>折扣</span>
+    <span><span class="legend-dot" style="background:#7C3AED"></span>非Pass</span>
+  </div>
+  <div class="hdr-right">
+    <span class="sync-chip off" id="syncChip" onclick="openShare()" title="點擊取得共同編輯連結">● 本機儲存</span>
+    <button class="sm-btn primary" onclick="openShare()">分享 / 匯入</button>
+    <button class="sm-btn danger" id="resetBtn" onclick="resetStars()">重設必去</button>
+  </div>
+</header>
+
+<div class="main-area">
+  <div id="map"></div>
+  <div class="sidebar">
+    <div class="sheet-handle" id="sheetHandle"><span class="bar"></span><span class="hint" id="sheetHint">往上拉展開</span></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="spots">景點<span class="n" id="tabSpotsN"></span></button>
+      <button class="tab" data-tab="itin">行程<span class="n" id="tabItinN"></span></button>
+    </div>
+
+    <div class="pane active" id="pane-spots">
+      <div class="sidebar-header">
+        <input type="text" id="search" placeholder="搜尋景點 Search...">
+        <span class="count-badge" id="count">76</span>
+        <button class="sm-btn" onclick="openCustomForm()">＋自訂</button>
+      </div>
+      <div class="spot-list" id="spotList"></div>
+    </div>
+
+    <div class="pane" id="pane-itin">
+      <div class="day-tabs" id="dayTabs"></div>
+      <div class="pass-bar" id="passBar"></div>
+      <div class="day-bar" id="dayBar" onclick="toggleDayHead()"><div class="sum" id="dayBarSum"></div><span class="chev">&#9660;</span></div>
+      <div class="day-head" id="dayHead"></div>
+      <div class="quick-add">
+        <input type="text" id="qaInput" placeholder="輸入景點名稱，直接加入這天…" autocomplete="off">
+        <button class="sm-btn" onclick="openCustomForm(null,true)">＋自訂</button>
+        <div class="qa-list" id="qaList"></div>
+      </div>
+      <div class="itin-list" id="itinList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="customModal">
+  <div class="modal">
+    <h3 id="customTitle">新增自訂景點（非 Pass）</h3>
+    <p>餐廳、景點、住宿都可以加。位置可以在地圖上點一下，或貼上 Google Map 座標（例：33.4996, 126.5312）。</p>
+    <input type="hidden" id="cId"><input type="hidden" id="cMode" value="custom">
+    <div class="field"><label>名稱 *</label><input type="text" id="cName" placeholder="例：城山日出峰"></div>
+    <div class="field" id="cBzField" style="display:none"><label>優惠／說明</label><input type="text" id="cBz"></div>
+    <div class="field"><label>地圖圖示類別</label><select id="cType"><option value="auto">自動判斷</option><option value="food">餐廳</option><option value="cafe">咖啡／甜點</option><option value="sight">景點／自然</option><option value="shop">購物</option><option value="fun">體驗／樂園</option><option value="stay">住宿</option></select></div>
+    <div class="field"><label>地址</label><input type="text" id="cAddr" placeholder="選填，按 Naver 鈕時會用它搜尋"></div>
+    <div class="field"><label>Naver 地圖連結或搜尋關鍵字</label><input type="text" id="cNaver" placeholder="貼 naver.me 連結，或輸入店名/地址（韓文最準）"></div>
+    <div class="field"><div class="two">
+      <div><label>營業時間</label><input type="text" id="cHours" placeholder="09:00~18:00"></div>
+      <div><label>預計停留（分）</label><input type="number" id="cStay" value="60" min="0" step="5"></div>
+    </div></div>
+    <div class="field"><div class="two">
+      <div><label>備註</label><input type="text" id="cNote" placeholder="選填"></div>
+      <div><label>電話</label><input type="text" id="cTel" placeholder="選填"></div>
+    </div></div>
+    <div class="field"><label>座標（緯度, 經度）</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="cCoord" placeholder="33.4996, 126.5312" style="flex:1">
+        <button class="sm-btn" type="button" onclick="geocodeCustomForm()" title="用地址或名稱自動定位">🔎 自動定位</button>
+        <button class="sm-btn" type="button" id="pickBtn" onclick="startPick()">📍 地圖點選</button>
+      </div>
+      <div class="coord-hint" id="coordHint">沒有座標也可以儲存，只是不會顯示在地圖、也不估車程。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="sm-btn danger" id="cDelete" onclick="deleteCustom()" style="display:none">刪除</button>
+      <button class="sm-btn" id="cRestore" onclick="restoreEdit()" style="display:none">還原原始資料</button>
+      <button class="sm-btn" onclick="closeModal('customModal')">取消</button>
+      <button class="sm-btn primary" onclick="saveCustom()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="shareModal">
+  <div class="modal">
+    <h3>分享 / 匯入</h3>
+    <div id="collabBox" style="display:none">
+      <p><b>共同編輯連結</b>：傳給朋友，任何人打開這個連結、在任何裝置上改，都會即時同步成同一份行程。</p>
+      <div class="field"><input type="text" id="collabLink" readonly onclick="this.select()"></div>
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:0;margin-bottom:14px"><button class="sm-btn primary" onclick="copyCollab()">複製連結</button><button class="sm-btn" onclick="newTrip()">開一份新的空白行程</button></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:6px 0 12px">
+    </div>
+    <p>「分享碼」是離線備份方式：把碼傳給朋友貼到下方「匯入」即可複製整份資料（會覆蓋對方目前的資料）。</p>
+    <div class="field"><label>我的分享碼</label><textarea id="shareOut" readonly></textarea></div>
+    <div class="modal-actions" style="justify-content:flex-start;margin-top:0;margin-bottom:14px">
+      <button class="sm-btn primary" onclick="copyShare()">複製分享碼</button>
+    </div>
+    <div class="field"><label>匯入朋友的分享碼</label><textarea id="shareIn" placeholder="貼上 JEJU1.…"></textarea></div>
+    <div class="modal-actions">
+      <button class="sm-btn danger" onclick="closeModal('shareModal');resetStars()">重設必去</button>
+      <button class="sm-btn" onclick="closeModal('shareModal')">關閉</button>
+      <button class="sm-btn primary" onclick="importShare()">匯入</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var SPOTS=[
+{id:1,en:"Active Park",kr:"Active Park",zh:"Active Park 兒童遊樂場",bz:"兒童咖啡廳（1hr）＋美式/冰茶（2選1）",be:"Kids cafe (1hr) + Americano/Iced tea",lat:33.3807089,lon:126.2359889,h:"09:30~18:00",tel:"064-796-0880",nv:"https://naver.me/xq3aI8v6",gl:"https://maps.app.goo.gl/9WeA7QtcxyB9bkUK9",free:true,origStar:false,nid:"1865664437"},
+{id:2,en:"Crayon Shin-chan Store",kr:"르벙쓸레브",zh:"蠟筆小新紀念品店",bz:"限量版角色貼紙組（5款）",be:"Limited Edition Character Sticker Set",lat:33.3034081,lon:126.2566616,h:"10:00~18:00",tel:"0507-1336-1433",nv:"https://naver.me/FINp7VMu",gl:"https://maps.app.goo.gl/euFf3xjC6zM2Snx8A",free:true,origStar:false,nid:"1561040639"},
+{id:3,en:"Dandang-ryu Cafe",kr:"단당류",zh:"Dandang-ryu 咖啡廳",bz:"美式/花草茶（2選1）/ 升級折₩2,000",be:"Americano/Herbal tea / ₩2,000 OFF upgrade",lat:33.3180244,lon:126.2696479,h:"09:00~19:00",tel:"010-2228-6424",nv:"https://naver.me/GpCg7g1Q",gl:"https://maps.app.goo.gl/s6PneHpLceqq8Zms9",free:true,origStar:false,nid:"1303266720"},
+{id:4,en:"Osulloc Tea Museum",kr:"오설록 티뮤지엄",zh:"雪綠茶博物館（O'sulloc）",bz:"免費抹茶冰淇淋 招牌霜淇淋",be:"MATCHA Ice Cream",lat:33.3059245,lon:126.2894923,h:"09:00~19:00",tel:"064-794-5312",nv:"https://naver.me/5uIYATBA",gl:"https://maps.app.goo.gl/h39VQfNuqa16smfX8",free:true,origStar:true,nid:"11612628"},
+{id:5,en:"Greem Cafe - Aerospace Museum",kr:"그림카페（항공우주박물관）",zh:"繪畫咖啡廳（航空宇宙博物館）",bz:"節省₩11,000 博物館+咖啡廳",be:"Save ₩11,000 Museum+Cafe",lat:33.2988579,lon:126.2900611,h:"09:30~18:00",tel:"064-794-9224",nv:"https://naver.me/FTXZlX4G",gl:"https://maps.app.goo.gl/UWVAGzK1wJ5AQK6R7",free:true,origStar:false,nid:"1067758848"},
+{id:6,en:"Manor Blanc",kr:"마노르블랑",zh:"Manor Blanc 莊園",bz:"節省₩3,000 成人₩4,000→₩2,500",be:"Save ₩3,000 Adult ₩4,000→₩2,500",lat:33.2548359,lon:126.2950168,h:"09:00~18:30",tel:"0507-1339-1049",nv:"https://naver.me/Fio7BxTk",gl:"https://maps.app.goo.gl/tF2vZHgu1nYbmGRq7",free:false,origStar:false,nid:"1509572684"},
+{id:7,en:"Jeje House",kr:"제제하우스",zh:"Jeje House",bz:"領取原木項鍊 / DIY鑰匙扣（2選1）",be:"Wooden Necklace / DIY Keyring Kit",lat:33.4167001,lon:126.3033093,h:"11:00~16:00",tel:"0507-1436-0811",nv:"https://naver.me/IxsMl4T6",gl:"https://maps.app.goo.gl/fMRjV1RGpo7FPm1g7",free:true,origStar:false,nid:"1033706480"},
+{id:8,en:"MOMO ZOO",kr:"모모주",zh:"MOMO ZOO 水豚動物園",bz:"節省₩6,000 水豚體驗2hr",be:"Save ₩6,000 Capybara zoo 2hrs",lat:33.3065312,lon:126.3075431,h:"10:00~19:00",tel:"0507-1399-5061",nv:"https://naver.me/xenwIQqF",gl:"https://maps.app.goo.gl/KpN6tcXv32P17PX5A",free:false,origStar:false,nid:"2027723820"},
+{id:9,en:"Shinhwa Theme Park",kr:"신화테마파크",zh:"神話世界主題公園",bz:"入場＋1設施＋最高7折",be:"ENTRY+1 RIDE+up to 70% OFF",lat:33.3065312,lon:126.3075431,h:"10:00~20:00",tel:"1670-1188",nv:"https://naver.me/xrSQq5KL",gl:"https://maps.app.goo.gl/LvHxkDZpz1yohkMs5",free:true,origStar:false,nid:"1870600980"},
+{id:10,en:"SULKUM Heritage Cafe",kr:"설쿰 제주헤리티지카페",zh:"SULKUM 濟州文化咖啡廳",bz:"美式/冰茶/麻糬軟糖（3選1）",be:"Americano/Iced Tea/Chewy Snack",lat:33.2337787,lon:126.3105173,h:"10:00~18:00",tel:"010-3076-0803",nv:"https://naver.me/5Bcjfwsv",gl:"https://maps.app.goo.gl/HkZ3ML3ebqpSG7yt7",free:true,origStar:false,nid:"1529057224"},
+{id:11,en:"Remember Jeju Souvenir",kr:"리멤버 제주",zh:"Remember Jeju 紀念品店",bz:"₩3,000 折扣",be:"₩3,000 OFF",lat:33.2898903,lon:126.3194455,h:"10:00~19:30",tel:"010-8810-3772",nv:"https://naver.me/FW6nKMnH",gl:"https://maps.app.goo.gl/EwRZUd6V4eVFr8s69",free:false,origStar:false,nid:"1899978117"},
+{id:12,en:"NanDal Cafe",kr:"난달",zh:"NanDal 咖啡廳",bz:"美式/冰茶（2選1）",be:"Americano/Iced tea",lat:33.4671187,lon:126.3204965,h:"11:00~21:00",tel:"0507-1464-0694",nv:"https://naver.me/FY3fLjNf",gl:"https://maps.app.goo.gl/bTwLGkJhpkdmjYms8",free:true,origStar:false,nid:"1963985592"},
+{id:13,en:"Aewol Hairtail Restaurant",kr:"애월 갈치 암행어사",zh:"涯月白帶魚餐廳",bz:"₩4,000折扣 白帶魚套餐",be:"₩4,000 OFF Hairtail set menu",lat:33.4669694,lon:126.3205337,h:"11:00~21:30",tel:"0507-1420-5545",nv:"https://naver.me/FgHDexvR",gl:"https://maps.app.goo.gl/555VrFA8S7JQAVBS6",free:false,origStar:false,nid:"1042054066"},
+{id:14,en:"Christmas Museum",kr:"크리스마스 박물관",zh:"聖誕博物館",bz:"迷你DIY 燈或手鏈（2選1）",be:"MINI DIY - lamp or bracelet",lat:33.2913123,lon:126.3278107,h:"10:30~18:00",tel:"010-2236-6306",nv:"https://naver.me/GCvqPzN5",gl:"https://maps.app.goo.gl/knK4ju8QbVhTu47t8",free:true,origStar:false,nid:"185594426"},
+{id:15,en:"Soingook Theme Park",kr:"소인국테마파크",zh:"小人國主題公園",bz:"5折入場 / ₩10,000→₩5,000",be:"50% OFF Entry",lat:33.2820357,lon:126.331768,h:"09:00~18:00",tel:"064-794-5400",nv:"https://naver.me/GbDFmR3r",gl:"https://maps.app.goo.gl/u1nizRmexbyrrggm9",free:false,origStar:false,nid:"11555793"},
+{id:16,en:"Nyangdabang Cafe",kr:"냥다방",zh:"Nyang Dabang 貓咖啡廳",bz:"美式1杯＋塔羅牌1張",be:"Americano + 1 tarot card",lat:33.4687571,lon:126.3401737,h:"11:00~17:00",tel:"0507-1363-4918",nv:"https://naver.me/xQeEMquq",gl:"https://maps.app.goo.gl/1ppCKThBvAXuitLk8",free:true,origStar:false,nid:"1955641380"},
+{id:17,en:"Book & Toy Museum",kr:"북앤토이 뮤지엄",zh:"書本＆玩具博物館",bz:"₩7,000套裝 博物館+咖啡+活動",be:"₩7,000 Package Museum+Coffee+Activity",lat:33.3189781,lon:126.3453633,h:"10:00~19:00",tel:"0507-1417-0334",nv:"https://naver.me/GKUJznpB",gl:"https://maps.app.goo.gl/Y3y5jZDmEJbNnS2NA",free:false,origStar:false,nid:"37526125"},
+{id:18,en:"Hanwool Jeju",kr:"한울제주",zh:"Hanwool 濟州",bz:"2件Omegi年糕 / 購買享10%折扣",be:"2 Omegi rice cakes / 10% off",lat:33.4669773,lon:126.3511004,h:"10:00~18:00",tel:"0507-1308-6109",nv:"https://naver.me/xVG7wmNn",gl:"https://maps.app.goo.gl/ofdbmYG1615kdr7n9",free:true,origStar:false,nid:"2010585466"},
+{id:19,en:"Figure Museum Jeju",kr:"피규어뮤지엄 제주",zh:"人偶博物館",bz:"節省₩6,000 / ₩14,000→₩8,000",be:"Save ₩6,000",lat:33.2818686,lon:126.3552564,h:"09:30~18:00",tel:"064-792-2244",nv:"https://naver.me/GI3JMQxc",gl:"https://maps.app.goo.gl/fykHq915G6ZXd76FA",free:false,origStar:false,nid:"1369820318"},
+{id:20,en:"Weland Cart Track",kr:"위랜드카트",zh:"Weland 卡丁車賽道",bz:"節省₩19,000 卡丁車 / ₩25,000→₩6,000",be:"Save ₩19,000 Kart",lat:33.2817444,lon:126.36269,h:"10:00~18:00",tel:"010-6811-8636",nv:"https://naver.me/FJbYb1uU",gl:"https://maps.app.goo.gl/PvxTCbcNaqUuLC6h9",free:false,origStar:true,nid:"1809668832"},
+{id:21,en:"Father's Garden",kr:"아버지의 정원",zh:"爸爸的花園",bz:"節省₩5,500 花園+動物農場+橘子採摘",be:"Save ₩5,500 Garden+Animal+Tangerine",lat:33.2801127,lon:126.3647296,h:"09:00~18:00",tel:"0507-1380-0036",nv:"https://naver.me/5FmSLLHO",gl:"https://maps.app.goo.gl/AY9yD1ouDmttKS2u5",free:false,origStar:false,nid:"1866060591"},
+{id:22,en:"Jeju Shooting Range",kr:"제주사격장",zh:"濟州射擊場",bz:"含12發子彈射擊體驗",be:"12 bullets shooting experience",lat:33.2636714,lon:126.3855463,h:"10:00~19:00",tel:"064-739-7007",nv:"https://naver.me/5mI0IOzc",gl:"https://maps.app.goo.gl/9KqLzxrpwT1xTTzu5",free:false,origStar:false,nid:"34359573"},
+{id:23,en:"Museum is Alive",kr:"살아있는 박물관",zh:"活的博物館",bz:"入場票",be:"Admission Ticket",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0888",nv:"https://naver.me/xcnauiXo",gl:"https://maps.app.goo.gl/TENsShLUa4KWmm9EA",free:false,origStar:false,nid:"34761905"},
+{id:24,en:"Tangerine Cart",kr:"감귤카트",zh:"橘子卡丁車",bz:"節省₩15,100 / ₩25,000→₩9,900",be:"Save ₩15,100",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0987",nv:"https://naver.me/xs3GvJ8x",gl:"https://maps.app.goo.gl/mKgtFv9mkeLrEWjJ6",free:false,origStar:false,nid:"38463992"},
+{id:25,en:"Running Man Experience",kr:"런닝맨 체험관",zh:"Running Man 體驗館",bz:"節省₩8,000 / 60分₩19,000→₩12,000",be:"Save ₩8,000",lat:33.254806,lon:126.40893,h:"09:00~19:00",tel:"064-805-0888",nv:"https://naver.me/G4Wodv1Q",gl:"https://maps.app.goo.gl/w3RryYgpzWY4akbg6",free:false,origStar:false,nid:"1583108870"},
+{id:26,en:"Lotte Hotel Buffet",kr:"롯데호텔 제주 라세느",zh:"樂天飯店自助餐",bz:"自助餐8折",be:"20% OFF Lotte Hotel buffet",lat:33.2486873,lon:126.4105139,h:"12:00~14:00 / 18:00~21:30",tel:"064-731-4266",nv:"https://naver.me/xXwVsbwv",gl:"https://maps.app.goo.gl/mcnUREZtGV6XAX2B6",free:false,origStar:false,nvq:"제주특별자치도 서귀포시 중문관광로72번길 35"},
+{id:27,en:"Chocolate Land",kr:"초콜릿랜드",zh:"巧克力樂園",bz:"入場票（價值₩3,000）",be:"Admission (worth ₩3,000)",lat:33.2494493,lon:126.4135038,h:"10:00~18:00",tel:"064-738-1197",nv:"https://naver.me/FswfosX4",gl:"https://share.google/acnYXJn5C6CaytWN1",free:true,origStar:false,nid:"16933121"},
+{id:28,en:"Cafe Brief",kr:"브리프 애월",zh:"Cafe Brief 咖啡廳",bz:"美式/冰茶/徽章2種（3選1）",be:"Americano/Iced tea/Wappen",lat:33.4583156,lon:126.4156694,h:"10:00~18:00",tel:"064-711-5507",nv:"https://naver.me/xDJu7uFE",gl:"https://maps.app.goo.gl/s4ieYpPn8UcU8vhcA",free:true,origStar:false,nid:"1957718117"},
+{id:29,en:"IVAR Garden",kr:"아이바가든",zh:"IVAR Garden 光影庭園",bz:"門票（價值₩15,000）/ 飲品8折",be:"Admission (₩15,000) / 20% off drinks",lat:33.4339332,lon:126.4215301,h:"09:00~19:00",tel:"064-752-1000",nv:"https://naver.me/FMTpfW6t",gl:"https://share.google/mhU82rkXXeDWTy8Zm",free:true,origStar:false,nid:"1864783085"},
+{id:30,en:"Cafe Jeju Kiwa",kr:"제주기와",zh:"Cafe Jeju Kiwa",bz:"美式/冰茶（2選1）/ 升級折₩2,000",be:"Americano/Iced tea / ₩2,000 OFF upgrade",lat:33.4511224,lon:126.425427,h:"09:00~18:00",tel:"070-8899-7515",nv:"https://naver.me/xeA5RAlv",gl:"https://maps.app.goo.gl/WpTAsdYPVxJPPsyQA",free:true,origStar:false,nid:"1364855325"},
+{id:31,en:"Otto Donut Jungmun",kr:"오또도넛 중문점",zh:"오또甜甜圈 中文店",bz:"免費原味甜甜圈",be:"Original Donut",lat:33.2559345,lon:126.4273301,h:"08:00~18:00",tel:"064-904-1516",nv:"https://naver.me/F88oV0Is",gl:"https://maps.app.goo.gl/jN7L3aMkyvK9YEAy7",free:true,origStar:true,nid:"1780759798"},
+{id:32,en:"African Museum",kr:"아프리카박물관",zh:"非洲博物館",bz:"入場票（價值₩11,000）",be:"Admission (worth ₩11,000)",lat:33.2397434,lon:126.429355,h:"10:00~18:50",tel:"064-738-6565",nv:"https://naver.me/xI1sytLJ",gl:"https://maps.app.goo.gl/CPB6mCGoJ8mF3avp7",free:true,origStar:false,nvq:"제주특별자치도 서귀포시 이어도로 49"},
+{id:33,en:"OEDO 339 Cafe",kr:"외도339",zh:"OEDO 339 咖啡廳",bz:"Koyotae韓式零食 / 升級折₩2,000",be:"Koyotae snack / ₩2,000 OFF upgrade",lat:33.4937423,lon:126.4316835,h:"09:00~22:00",tel:"0507-1345-0339",nv:"https://naver.me/5vcHaEs9",gl:"https://maps.app.goo.gl/sGnArTHzsdptNh4f6",free:true,origStar:false,nid:"1095240900"},
+{id:34,en:"Mandal",kr:"만달",zh:"Mandal 紀念品店",bz:"兔子胡蘿蔔筆 / 滿₩20,000享9折",be:"Rabbit carrot pen / 10% OFF over ₩20,000",lat:33.2562764,lon:126.4342366,h:"09:00~21:00",tel:"064-739-7896",nv:"https://naver.me/FtThOB4w",gl:"https://maps.app.goo.gl/MQm59Uf9C7fzK3dg6",free:true,origStar:false,nid:"1523455559"},
+{id:35,en:"Jeju-Hyang Farm",kr:"제주향농원",zh:"濟州香農園（橘子農場）",bz:"漢拏峰500g/芒果軟糖/漢拏峰軟糖（3選1）",be:"Hallabong 500g / Mango Jelly / Hallabong Jelly",lat:33.2540378,lon:126.4388006,h:"09:30~17:00",tel:"064-738-6776",nv:"https://naver.me/5r3JV9Cf",gl:"https://maps.app.goo.gl/GxwHYKkbM3e5mbd99",free:true,origStar:true,nid:"16928374"},
+{id:36,en:"Jeju Holic Museum",kr:"제주홀릭뮤지엄",zh:"濟州 HOLIC 博物館",bz:"節省₩6,000 / ₩12,000→₩6,000",be:"Save ₩6,000",lat:33.4565873,lon:126.4414265,h:"09:30~19:00",tel:"0507-1324-7455",nv:"https://naver.me/xP8my9SS",gl:"https://maps.app.goo.gl/ANhap5bW3E2iSkV77",free:false,origStar:false,nid:"1332865735"},
+{id:37,en:"About Jeju",kr:"어바웃제주",zh:"About Jeju 紀念品店",bz:"濟州設計紀念品－冰箱貼",be:"Jeju-designed souvenir - Magnet",lat:33.5027098,lon:126.4568626,h:"10:00~18:30",tel:"010-2907-2754",nv:"https://naver.me/FN7sitJR",gl:"https://maps.app.goo.gl/VvfkFD4PKv2NtjfSA",free:true,origStar:true,nid:"1444985917"},
+{id:38,en:"Jeju Chol-wat Cafe",kr:"제주촐왓",zh:"濟州 Chol-wat 咖啡廳",bz:"美式/漢拏峰軟糖/巧克力脆餅等（5選1）",be:"Americano/Jelly/Choco bar",lat:33.4625335,lon:126.4647889,h:"08:30~19:00",tel:"0507-1337-4397",nv:"https://naver.me/F74me83j",gl:"https://maps.app.goo.gl/iWXvMbeWPtYTZNhT8",free:true,origStar:false,nid:"1161783994"},
+{id:39,en:"Alice's Curious Gift Shop",kr:"이상한 선물가게 앨리스",zh:"Alice 奇妙禮物店",bz:"濟州石紀念品（玄武岩牙刷架）",be:"Basalt toothbrush holder",lat:33.4578982,lon:126.4848101,h:"10:00~22:00",tel:"0507-1480-5361",nv:"https://naver.me/xlbJmshi",gl:"https://maps.app.goo.gl/tvFUApBz3Vmn6FTq7",free:true,origStar:false,nid:"2034324763"},
+{id:40,en:"Jeju Yuk Dae Pyo",kr:"제주육대표",zh:"濟州肉代表",bz:"每人每餐₩3,000折扣",be:"₩3,000 OFF per person",lat:33.4940385,lon:126.4901082,h:"12:00~22:30",tel:"064-747-0092",nv:"https://naver.me/5S9QG896",gl:"https://maps.app.goo.gl/c22RBoLPgjDZTbFdA",free:false,origStar:false,nid:"1535755682"},
+{id:41,en:"By Jeju",kr:"바이제주",zh:"By Jeju 紀念品店",bz:"濟州設計紀念品－小鏡子",be:"Jeju-designed souvenir - Hand mirror",lat:33.5165429,lon:126.5041108,h:"09:00~21:30",tel:"064-745-1134",nv:"https://naver.me/xAFC3sQU",gl:"https://maps.app.goo.gl/XarTqGDYRQPbjG8h8",free:true,origStar:true,nid:"1389108105"},
+{id:42,en:"Je Story",kr:"제스토리",zh:"Je Story 紀念品店",bz:"濟州紀念品－記事本＋鉛筆組",be:"Notepad + Pencil Set",lat:33.2361009,lon:126.5149259,h:"09:00~21:00",tel:"064-738-1134",nv:"https://naver.me/GbDF4Oqg",gl:"https://maps.app.goo.gl/TvtmzHbLFkfrGEKm7",free:true,origStar:false,nid:"36287983"},
+{id:43,en:"Yellow House Olle Market",kr:"노란집 매일올레시장점",zh:"黃色小屋 偶來市場店",bz:"隨機護手霜禮物",be:"Random hand cream gift",lat:33.2497195,lon:126.5640281,h:"09:00~21:00",tel:"010-8108-0164",nv:"https://naver.me/FCrly0E3",gl:"https://maps.app.goo.gl/MoQKnrrKfyfy4mHD6",free:true,origStar:false,nid:"1394636352"},
+{id:44,en:"Otto Donut Seogwi",kr:"오또도넛 서귀점",zh:"오또甜甜圈 西歸浦店",bz:"免費原味甜甜圈",be:"Original Donut",lat:33.2438281,lon:126.5650864,h:"10:00~19:00",tel:"0507-1365-0448",nv:"https://naver.me/GPdH00FF",gl:"https://maps.app.goo.gl/ijwmSjQG9wnbjwGD7",free:true,origStar:true,nid:"1508932793"},
+{id:45,en:"PLANT 827 Cafe",kr:"플랜트827",zh:"PLANT 827 咖啡廳",bz:"美式或柑橘汁（2選1）/ 升級折₩2,000",be:"Americano or Tangerine Juice / ₩2,000 OFF",lat:33.462775,lon:126.5724453,h:"09:30~18:30",tel:"064-745-0827",nv:"https://naver.me/GVEJNlQc",gl:"https://maps.app.goo.gl/hN8pUHxxeykMrXFG6",free:true,origStar:false,nvq:"제주특별자치도 제주시 월평4길 54-27"},
+{id:46,en:"EOMAR Cafe",kr:"에오마르",zh:"EOMAR 咖啡廳",bz:"免費美式咖啡 / 升級折₩2,000",be:"Free Americano / ₩2,000 OFF upgrade",lat:33.5257365,lon:126.5865677,h:"09:00~21:00",tel:"0507-1357-2412",nv:"https://naver.me/GUw9VrRv",gl:"https://maps.app.goo.gl/pNiVy9zNWT8EQthm9",free:true,origStar:false,nid:"1256054205"},
+{id:47,en:"Roe Deer Observation Center",kr:"노루생태관찰원",zh:"麅子生態觀察園",bz:"入場票（₩1,000）/ 手作體驗₩3,000",be:"Zoo admission / Craft ₩3,000",lat:33.4450253,lon:126.6255746,h:"09:00~18:00",tel:"064-728-3611",nv:"https://naver.me/5GpYBiKA",gl:"https://maps.app.goo.gl/Frgb4T7nsUpqFGAP7",free:true,origStar:false,nid:"13072135"},
+{id:48,en:"GLOSSY Matcha (Takeout)",kr:"글로시말차",zh:"GLOSSY 抹茶（僅限外帶）",bz:"抹茶或美式（2選1）",be:"Matcha or Americano",lat:33.5457979,lon:126.6397882,h:"10:30~18:30",tel:"0507-1391-7850",nv:"https://naver.me/502MfWpo",gl:"https://maps.app.goo.gl/VnKsAYnVbdPHSkmi6",free:true,origStar:false,nid:"1265323075"},
+{id:49,en:"Sinheung Sea Fishing Park",kr:"낚고락고",zh:"濟州釣魚公園",bz:"節省₩2,000 釣魚60分 / ₩20,000→₩18,000",be:"Save ₩2,000 Fishing 60min",lat:33.5512632,lon:126.646943,h:"10:00~17:00",tel:"064-783-8855",nv:"https://naver.me/xMjKrgLF",gl:"https://maps.app.goo.gl/a5XKDEcottmKVNw98",free:false,origStar:true,nid:"1185839878"},
+{id:50,en:"Ecoland",kr:"에코랜드",zh:"Ecoland 樂園",bz:"節省₩13,000 / ₩21,000→₩8,000",be:"Save ₩13,000",lat:33.4553485,lon:126.6688528,h:"08:30~18:40",tel:"064-802-8000",nv:"https://naver.me/GMmgqDjq",gl:"https://maps.app.goo.gl/ZdX6F5JMyxS8AAVB7",free:false,origStar:false,nid:"19584967"},
+{id:51,en:"Jeju Central Park",kr:"센트럴파크",zh:"濟州中央公園",bz:"入場票（價值₩10,000）",be:"Admission (worth ₩10,000)",lat:33.4331955,lon:126.6745538,h:"09:00~18:00",tel:"064-782-7720",nv:"https://naver.me/G65tqvLZ",gl:"https://maps.app.goo.gl/wpxhVU1ajakkKzSh6",free:true,origStar:false,nid:"11558557"},
+{id:52,en:"Kim Man-il Memorial Hall",kr:"헌마공신 김만일기념관",zh:"獻馬功臣金萬鎰紀念館",bz:"手工馬形紀念品體驗",be:"Horse-themed craft experience",lat:33.3361472,lon:126.690786,h:"09:00~18:00",tel:"064-805-9801",nv:"https://naver.me/F9hpno7z",gl:"https://maps.app.goo.gl/zh67zN8xqDfXchzq5",free:true,origStar:false,nid:"1317124374"},
+{id:53,en:"Innerlith",kr:"이너리스",zh:"Innerlith",bz:"節省₩13,000 / ₩18,000→₩5,000",be:"Save ₩13,000",lat:33.4796013,lon:126.7005442,h:"10:00~18:00",tel:"070-4523-7123",nv:"https://naver.me/GBvAls2Z",gl:"https://maps.app.goo.gl/UbnXwM9u8K3ZTkfM7",free:false,origStar:false,nid:"2041158931"},
+{id:54,en:"Naenoki Cafe",kr:"내노키카페",zh:"Naenoki 咖啡廳",bz:"美式/冰淇淋手工甜點（2選1）",be:"Americano / Ice Cream dessert",lat:33.28356,lon:126.723371,h:"08:30~19:00",tel:"010-7568-6162",nv:"https://naver.me/GFBdjsQ5",gl:"https://maps.app.goo.gl/AnJEfEH6eWLgXkU99",free:true,origStar:false,nid:"1269134665"},
+{id:55,en:"Yujin-fang Tropical Farm",kr:"열대과일농장 유진팡",zh:"유진팡 熱帶水果農場",bz:"節省₩6,500 成人₩11,500→₩5,000",be:"Save ₩6,500",lat:33.3399265,lon:126.7424986,h:"10:00~18:00",tel:"010-3747-6896",nv:"https://naver.me/Fr7pM7ps",gl:"https://maps.app.goo.gl/uCYpcR7HHJzBxRLG8",free:false,origStar:false,nid:"1348050730"},
+{id:56,en:"Sky Water Show",kr:"스카이워터쇼",zh:"天空水舞秀",bz:"節省₩19,000 / ₩24,000→₩5,000",be:"Save ₩19,000",lat:33.4241015,lon:126.7430557,h:"09:30/11:00/14:30",tel:"064-782-787",nv:"https://naver.me/xmxIrdbH",gl:"https://maps.app.goo.gl/Zy7PAfRwN93itZ8D6",free:false,origStar:false,nid:"36222855"},
+{id:57,en:"Delmundo Gimnyeong",kr:"델문도 김녕점",zh:"Delmundo 金寧店",bz:"美式/冰茶（2選1）",be:"Americano/Iced Tea",lat:33.5634107,lon:126.7684035,h:"08:00~20:00",tel:"010-6454-6068",nv:"https://naver.me/x67yOQzJ",gl:"https://maps.app.goo.gl/BsxMoipcxyzf2wFK7",free:true,origStar:false,nid:"1276979145"},
+{id:58,en:"Cafe Batti",kr:"목장카페 밭디",zh:"牧場咖啡廳 Batti",bz:"美式/冰茶（2選1）/ 升級折₩2,000",be:"Americano/Iced Tea / ₩2,000 OFF upgrade",lat:33.4079,lon:126.7722163,h:"09:00~18:00",tel:"0507-1371-6019",nv:"https://naver.me/xf5AG0hW",gl:"https://maps.app.goo.gl/qoznmnpY1f4fs9Y7A",free:true,origStar:false,nid:"1394510357"},
+{id:59,en:"Dynamic Maze",kr:"다이나믹메이즈",zh:"Dynamic Maze 互動迷宮",bz:"節省₩6,400 / ₩21,000→₩14,600",be:"Save ₩6,400",lat:33.3990993,lon:126.7846735,h:"09:00~18:00",tel:"064-787-8774",nv:"https://naver.me/55rm5FpK",gl:"https://maps.app.goo.gl/VRBcrmNhgfcMFTR48",free:false,origStar:false,nid:"38323036"},
+{id:60,en:"Lolleinforest",kr:"아이올레인포레스트",zh:"Lolleinforest 森林樂園",bz:"節省₩9,000 成人₩4,500→₩3,000",be:"Save ₩9,000",lat:33.5183545,lon:126.7877599,h:"10:00~19:00",tel:"0507-1365-1120",nv:"https://naver.me/GV2jWjXL",gl:"https://maps.app.goo.gl/hX8515Smf98J8yzF6",free:false,origStar:false,nid:"1889609745"},
+{id:61,en:"Maze Land",kr:"메이즈랜드",zh:"Maze Land 迷宮樂園",bz:"節省₩4,000 / ₩16,000→₩12,000",be:"Save ₩4,000",lat:33.4879942,lon:126.801012,h:"09:00~18:00",tel:"064-784-3838",nv:"https://naver.me/xq3aOl5w",gl:"https://maps.app.goo.gl/ovh4ZG7gZBBr4gpz5",free:false,origStar:true,nid:"20034615"},
+{id:62,en:"Woo-ri Horse Riding",kr:"우리승마장",zh:"우리騎馬俱樂部",bz:"騎馬基礎課程（價值₩11,000）",be:"Horse Riding Basic course",lat:33.3868904,lon:126.8125,h:"09:00~16:30",tel:"064-787-4831",nv:"https://naver.me/5T46ZaNQ",gl:"https://maps.app.goo.gl/erP1dWPer8UpwnVB9",free:true,origStar:true,nid:"16963584"},
+{id:63,en:"World Liquor Museum",kr:"세계주류박물관",zh:"世界酒博物館",bz:"入場票（價值₩7,000）",be:"Admission (worth ₩7,000)",lat:33.3540054,lon:126.8176175,h:"09:00~18:00",tel:"064-787-9500",nv:"https://naver.me/5A3pwCpW",gl:"https://maps.app.goo.gl/Vx19SxMpDAJjgbA49",free:true,origStar:false,nid:"34585311"},
+{id:64,en:"View Jeju Sky ATV",kr:"뷰제주 스카이 ATV",zh:"View Jeju ATV 越野體驗",bz:"節省₩16,000 / ₩30,000→₩14,000",be:"Save ₩16,000",lat:33.413224,lon:126.832962,h:"09:00~17:00",tel:"064-784-3631",nv:"https://naver.me/x4FLYS7p",gl:"https://maps.app.goo.gl/5brBjT1QMxbDTL3P7",free:false,origStar:false,nid:"13542343"},
+{id:65,en:"Ilchul Land",kr:"일출랜드",zh:"日出樂園",bz:"門票（₩12,000）/ 足浴9折",be:"Admission (₩12,000) / Foot bath 10% OFF",lat:33.3832875,lon:126.8415363,h:"09:00~18:00",tel:"064-784-2080",nv:"https://naver.me/5r9IIneh",gl:"https://maps.app.goo.gl/hpct7C2keEvFGiPQ6",free:true,origStar:true,nid:"11491279"},
+{id:66,en:"Geoshin XR",kr:"거신XR",zh:"거신XR 4D體驗中心",bz:"免費入場票（價值₩5,000）",be:"Admission (worth ₩5,000)",lat:33.3732914,lon:126.8438245,h:"09:00~17:30",tel:"010-4309-5169",nv:"https://naver.me/FgT3aHZA",gl:"",free:true,origStar:false,nid:"2003312023"},
+{id:67,en:"Robo Battle",kr:"로보배틀",zh:"機器人大戰",bz:"機器人騎乘（價值₩5,000）",be:"Robot riding (worth ₩5,000)",lat:33.3733925,lon:126.8444754,h:"09:00~18:00",tel:"010-5220-9784",nv:"https://naver.me/GGCBbbtC",gl:"https://maps.app.goo.gl/GEc5ZtRsn47nLGMY9",free:true,origStar:false,nid:"2055482335"},
+{id:68,en:"Samdal 198 Cafe",kr:"삼달198",zh:"三達198 咖啡廳",bz:"美式/梅子汽水（2選1）/ 陶藝體驗",be:"Americano/Plum Ade / Pottery experience",lat:33.3740972,lon:126.8486572,h:"09:00~18:00",tel:"0507-1310-0443",nv:"https://naver.me/5UEcyNPm",gl:"https://maps.app.goo.gl/o2yrx5HartRroaPw5",free:true,origStar:false,nid:"1102735868"},
+{id:69,en:"Island Flower Zoo",kr:"아일랜드 플라워주",zh:"島花動物園",bz:"入場票（價值₩7,000）",be:"Admission (worth ₩7,000)",lat:33.4243221,lon:126.8496384,h:"10:00~17:30",tel:"064-782-0955",nv:"https://naver.me/x7ndlKwe",gl:"https://maps.app.goo.gl/AnJoPiSVCaniKqu38",free:true,origStar:false,nid:"1585338511"},
+{id:70,en:"Hyun-ae Won Garden",kr:"현애원",zh:"현애원 花園",bz:"入場票（價值₩7,000）",be:"Admission (worth ₩7,000)",lat:33.4559556,lon:126.9084195,h:"09:00~18:00",tel:"010-4375-3240",nv:"https://naver.me/xWTnioXM",gl:"https://maps.app.goo.gl/WUAMZ16mMJdYiftZ9",free:true,origStar:false,nid:"1755962862"},
+{id:71,en:"Jeju Souvenir Shop",kr:"제주선물가게 본점",zh:"濟州禮物店 本店",bz:"芳香劑組/當季水果（2選1）",be:"Air freshener / Seasonal fruit",lat:33.4486137,lon:126.9201357,h:"08:00~21:00",tel:"0507-1352-2490",nv:"https://naver.me/GNRs9Nf3",gl:"https://maps.app.goo.gl/YrCEkNK33vrgB2Yq7",free:true,origStar:false,nid:"1972451114"},
+{id:72,en:"Mango Day Dessert Cafe",kr:"망고데이",zh:"Mango Day 甜品咖啡廳",bz:"成人：美式/芒果茶（3選1）兒童：芒果冰淇淋",be:"Adult: Americano/Mango Tea; Child: Ice Cream",lat:33.4363558,lon:126.9205045,h:"09:00~21:00",tel:"064-782-6006",nv:"https://naver.me/GtUZdWFR",gl:"https://maps.app.goo.gl/bs9jKQiECJnkC73u5",free:true,origStar:false,nid:"35902717"},
+{id:73,en:"Jeju-ildo Seongsan",kr:"제주일도 성산점",zh:"濟州一道 城山店（黑豬肉）",bz:"₩5,000折扣 濟州黑豬肉",be:"₩5,000 OFF Jeju black pork",lat:33.4367975,lon:126.9212844,h:"11:00~23:00",tel:"010-3404-1568",nv:"https://naver.me/GmbM10wH",gl:"https://maps.app.goo.gl/GFHRdaFCu551y7Xs9",free:false,origStar:false,nid:"1442231602"},
+{id:74,en:"Phoenix Floyeast Cafe",kr:"플로이스트 베이커리 카페",zh:"鳳凰Floyeast 海景咖啡廳",bz:"每人9折 海景咖啡廳",be:"10% OFF per person - Ocean-view cafe",lat:33.4302921,lon:126.9293643,h:"10:00~19:00",tel:"064-731-7310",nv:"https://naver.me/xpBZo4o2",gl:"https://maps.app.goo.gl/tkrdfWrVwxaEvNwn8",free:false,origStar:false,nvq:"제주특별자치도 서귀포시 성산읍 섭지코지로 107"},
+{id:75,en:"Phoenix Seopji Lounge",kr:"휘닉스 섭지 올데이 라운지",zh:"鳳凰涉地可支 全日Lounge",bz:"每人9折",be:"10% OFF per person",lat:33.4302921,lon:126.9293643,h:"10:00~23:00",tel:"064-731-7721",nv:"https://naver.me/xbjVGXsj",gl:"https://maps.app.goo.gl/5EcHJBNE45i5i8Ln7",free:false,origStar:false,nvq:"제주 서귀포시 성산읍 섭지코지로 107"},
+{id:76,en:"Seongsan Heukdon-jjul",kr:"흑돈쭐 제주성산일출봉점",zh:"城山黑豚쭐 黑豬肉餐廳",bz:"₩5,000折扣 濟州黑豬肉",be:"₩5,000 OFF Jeju black pork",lat:33.4655067,lon:126.9354785,h:"11:00~23:00",tel:"0507-1440-0682",nv:"https://naver.me/xKERj7NU",gl:"https://maps.app.goo.gl/JguFARRLj2WcQdBx9",free:false,origStar:false,nid:"1432042622"},
+{id:77,en:"Dochidol Ranch",kr:"도치돌목장",zh:"道峙石牧場 도치돌목장（草泥馬・動物農場）",bz:"節省₩10,000 現場價₩15,000→Pass ₩5,000（動物農場・草泥馬）",be:"Save ₩10,000 / ₩15,000→₩5,000 Animal farm",lat:33.4097232,lon:126.3667613,h:"09:00~18:00（入場截止17:30）",tel:"064-799-6690",nv:"https://naver.me/xprAP83t",gl:"https://maps.app.goo.gl/1v3NVHsRqNwDRHpZ7",free:false,origStar:false,nid:"1519191855"},
+{id:78,en:"Gift Gopang (Jeju Airport Branch)",kr:"선물고팡 제주공항점",zh:"선물고팡 禮物店 機場店",bz:"免費沙灘球",be:"Beach ball",lat:33.5029551,lon:126.5049335,h:"09:00~18:00",tel:"0507-1416-3951",nv:"https://naver.me/xZVbohku",gl:"https://maps.app.goo.gl/y9aymcKC3jqoki2z5",free:true,origStar:false,nid:"1199109178"},
+{id:79,en:"Songdang Horse Riding",kr:"송당승마장",zh:"松堂騎馬場 송당승마장（騎馬／ATV）",bz:"騎馬基本₩15,000→₩8,000／牧場₩30,000→₩20,000／草原₩40,000→₩30,000；ATV ₩35,000→₩18,000",be:"Horse riding basic ₩15,000→₩8,000; Ranch ₩30,000→₩20,000; ATV ₩35,000→₩18,000",lat:33.4361651,lon:126.7392328,h:"11:00~17:00",tel:"0507-1436-1318",nv:"https://naver.me/5N15FrlG",gl:"https://maps.app.goo.gl/wSPSmWUnmWiDFEJN7",free:false,origStar:false,nid:"20343711"}
+];
+
+var NAVER=[
+{id:"n4790720613",zh:"오또甜甜圈 咸德店",kr:"오또도넛 함덕점",addr:"제주 제주시 조천읍 함덕13길 2",note:"免費換 原味甜甜圈",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/2020314717",lat:33.54138,lon:126.66773,custom:true,naver:true},
+{id:"n4790719246",zh:"松岳卡丁車體驗場",kr:"송악카트체험장",addr:"제주 서귀포시 대정읍 송악관광로 404",note:"",cat:"休閒",nv:"https://map.naver.com/p/entry/place/13521131",lat:33.20841,lon:126.28916,custom:true,naver:true},
+{id:"n4790647364",zh:"Camellia Hill 山茶花之丘",kr:"카멜리아힐",addr:"제주 서귀포시 안덕면 병악로 166",note:"省12,000",cat:"景點",nv:"https://map.naver.com/p/entry/place/11846866",lat:33.29014,lon:126.36837,custom:true,naver:true},
+{id:"n4790638073",zh:"巧克力博物館（大靜）",kr:"초콜릿박물관",addr:"제주 서귀포시 대정읍 일주서로3000번길 144",note:"免費入場，省3,000 韓元",cat:"景點",nv:"https://map.naver.com/p/entry/place/32165845",lat:33.25705,lon:126.22998,custom:true,naver:true},
+{id:"n4785013036",zh:"濟州騎馬公園",kr:"제주승마공원",addr:"제주 제주시 애월읍 녹고메길 152-1",note:"",cat:"休閒",nv:"https://map.naver.com/p/entry/place/13276953",lat:33.4056,lon:126.40655,custom:true,naver:true},
+{id:"n4784967033",zh:"Lovely Jeju 紀念品店",kr:"러블리제주",addr:"제주 제주시 애월읍 애월해안로 686",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/1280633747",lat:33.48196,lon:126.37519,custom:true,naver:true},
+{id:"n4587320145",zh:"牛沼河口 쇠소깍（透明獨木舟）",kr:"쇠소깍",addr:"濟州特別自治道 西歸浦市 下孝洞 990-1",note:"鹹水與淡水交界",cat:"景點",nv:"https://map.naver.com/p/entry/place/11707633",lat:33.2521715,lon:126.6235555,custom:true,naver:true},
+{id:"n4584505313",zh:"Object 濟州店（文創選物）",kr:"오브젝트 제주점",addr:"濟州特別自治道 濟州市 舊左邑 東福裡 722-1",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/1084750299",lat:33.5534232,lon:126.7156963,custom:true,naver:true},
+{id:"n4564295206",zh:"똘래미年糕店（偶來市場）",kr:"떡집똘래미",addr:"濟州特別自治道 西歸浦市 西歸洞 276-2",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/2034338417",lat:33.2498255,lon:126.5635224,custom:true,naver:true},
+{id:"n4551257512",zh:"黑豬肉一條街",kr:"흑돼지거리",addr:"濟州特別自治道 濟州市 健入洞",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/21761823",lat:33.515836,lon:126.526844,custom:true,naver:true},
+{id:"n4551256153",zh:"三代麵館 本店（肉湯麵）",kr:"삼대국수회관 본점",addr:"濟州特別自治道 濟州市 一徒二洞 1045-12",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/11727502",lat:33.5068841,lon:126.530101,custom:true,naver:true},
+{id:"n4551191674",zh:"挾才海鮮泡麵 쪼꼴락商會",kr:"협재해물라면 쪼꼴락상회",addr:"濟州特別自治道 濟州市 翰林邑 挾才裡 1750",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1167642113",lat:33.3937738,lon:126.2415575,custom:true,naver:true},
+{id:"n4551142926",zh:"山君不離（火山口・芒草）",kr:"산굼부리",addr:"濟州特別自治道 濟州市 朝天邑 橋來裡 342-2",note:"",cat:"地點",nv:"https://map.naver.com/p/entry/place/11491425",lat:33.4342179,lon:126.6887629,custom:true,naver:true},
+{id:"n4549665830",zh:"The Container 咖啡廳",kr:"카페 더 콘테나 제주",addr:"濟州特別自治道 濟州市 朝天邑 臥山裡 851",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1339557107",lat:33.4980879,lon:126.6789565,custom:true,naver:true},
+{id:"n4549641259",zh:"城山日出峰 停車場入口",kr:"성산일출봉주차장입구",addr:"濟州特別自治道 西歸浦市 城山邑 城山裡",note:"",cat:"地點",nv:"https://map.naver.com/p/entry/place/37599284",lat:33.4625535,lon:126.9357337,custom:true,naver:true},
+{id:"n4549635849",zh:"山茶花森林 Dongbaek Forest",kr:"동백포레스트",addr:"濟州特別自治道 西歸浦市 南元邑 新禮裡 1767",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1611903913",lat:33.3003076,lon:126.6361983,custom:true,naver:true},
+{id:"n4547793358",zh:"濟州旅行者中心（領5000折價券）",kr:"제주여행자센터",addr:"濟州特別自治道 濟州市 一徒一洞 1291",note:"可以領5000折價券",cat:"景點",nv:"https://map.naver.com/p/entry/place/2031464673",lat:33.5143285,lon:126.5248239,custom:true,naver:true},
+{id:"n4547782856",zh:"海女烤肉 해녀고기（黑豬肉）",kr:"해녀고기",addr:"濟州特別自治道 濟州市 連洞 1413-2",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1003877267",lat:33.4771134,lon:126.4916114,custom:true,naver:true},
+{id:"n4547772751",zh:"innisfree 濟州小屋",kr:"이니스프리 제주하우스",addr:"濟州特別自治道 西歸浦市 安德面 西廣裡 1235-1",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/31887096",lat:33.3067025,lon:126.290889,custom:true,naver:true},
+{id:"n4547767528",zh:"漢拏山 白鹿潭",kr:"백록담",addr:"濟州特別自治道 西歸浦市 吐坪洞 산15-1",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/13490872",lat:33.3625724,lon:126.5333129,custom:true,naver:true},
+{id:"n4547762533",zh:"道頭洞 彩虹海岸公路",kr:"도두동무지개해안도로",addr:"濟州特別自治道 濟州市 道頭一洞 1734",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1037809518",lat:33.5091239,lon:126.4714634,custom:true,naver:true},
+{id:"n4529267109",zh:"濟州中央地下商街",kr:"제주중앙지하상가",addr:"濟州特別自治道 濟州市 一徒一洞 1454-2",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/19650446",lat:33.5131445,lon:126.5246296,custom:true,naver:true},
+{id:"n4546151899",zh:"Ugly Peanuts 東門市場店（花生點心）",kr:"어글리피너츠 동문시장점",addr:"濟州特別自治道 濟州市 一徒一洞 1102-32",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1686840944",lat:33.5119395,lon:126.527148,custom:true,naver:true},
+{id:"n4546145457",zh:"道頭海水樂園（汗蒸幕）",kr:"도두해수파크",addr:"濟州特別自治道 濟州市 道頭一洞 1729",note:"",cat:"生活",nv:"https://map.naver.com/p/entry/place/21039567",lat:33.5085801,lon:126.4711976,custom:true,naver:true},
+{id:"n4546122105",zh:"Old Cap 神話世界店（美式餐廳）",kr:"올드캡 SOUTH 신화월드점",addr:"제주 서귀포시 안덕면 녹차분재로 58",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1084552243",lat:33.29079,lon:126.30183,custom:true,naver:true},
+{id:"n4546121172",zh:"엉알海岸（松岳山海岸步道）",kr:"엉알해안",addr:"제주특별자치도 제주시 한경면 고산리",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/13481088",lat:33.29954,lon:126.16745,custom:true,naver:true},
+{id:"n4546120761",zh:"玉頭魚食堂（烤玉鯧魚・海帶湯）",kr:"옥돔식당",addr:"제주 서귀포시 대정읍 신영로36번길 62",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/13444912",lat:33.21997,lon:126.24896,custom:true,naver:true},
+{id:"n4546119268",zh:"山房山 海鮮泡麵哥哥家",kr:"산방산해물라면오빠네",addr:"제주 서귀포시 안덕면 사계남로216번길 24-68",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1133619256",lat:33.23522,lon:126.3128,custom:true,naver:true},
+{id:"n4546118598",zh:"Tramonto 海景義大利麵",kr:"트라몬토제주오션뷰파스타",addr:"제주 서귀포시 대정읍 하모항구로 38",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1256156460",lat:33.21744,lon:126.2498,custom:true,naver:true},
+{id:"n4546117319",zh:"Bu Gelato 義式冰淇淋",kr:"부젤라또",addr:"제주 서귀포시 안덕면 형제해안로 32",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1111181049",lat:33.2278,lon:126.30327,custom:true,naver:true},
+{id:"n4546114064",zh:"柱狀節理帶 停車場",kr:"주상절리대 주차장",addr:"제주특별자치도 서귀포시 중문동 2756-1",note:"",cat:"停車",nv:"https://map.naver.com/p/entry/place/1179643291",lat:33.23863,lon:126.42665,custom:true,naver:true},
+{id:"n4546113034",zh:"Cafe Onol 咖啡廳",kr:"카페오놀",addr:"제주 서귀포시 대포로 174",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1747594211",lat:33.23887,lon:126.43953,custom:true,naver:true},
+{id:"n4546109812",zh:"史努比花園 Snoopy Garden",kr:"스누피가든",addr:"제주 제주시 구좌읍 금백조로 930",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1875149782",lat:33.44413,lon:126.77817,custom:true,naver:true},
+{id:"n4546107738",zh:"溫平 海洋一碗 城山本店（海鮮蓋飯）",kr:"온평바다한그릇 성산본점",addr:"제주 서귀포시 성산읍 환해장성로 467",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1397321112",lat:33.39883,lon:126.90499,custom:true,naver:true},
+{id:"n4546106076",zh:"三代海女之家 城山本店（鮑魚粥）",kr:"삼대해녀의집 성산본점",addr:"제주 서귀포시 성산읍 환해장성로 583-5",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/20125047",lat:33.40659,lon:126.90669,custom:true,naver:true},
+{id:"n4546104045",zh:"城山浦港客運站（往牛島船班）",kr:"성산포항종합여객터미널",addr:"제주 서귀포시 성산읍 성산등용로 112-7",note:"",cat:"交通",nv:"https://map.naver.com/p/entry/place/13542618",lat:33.47288,lon:126.93439,custom:true,naver:true},
+{id:"n4546100973",zh:"涯月 유수암路 41-5（地址標記）",kr:"제주 제주시 애월읍 유수암로1길 41-5",addr:"제주특별자치도 제주시 애월읍 유수암로1길 41-5",note:"",cat:"地點",nv:"",lat:33.43496,lon:126.40491,custom:true,naver:true},
+{id:"n4546096943",zh:"BHC炸雞 無愁川店",kr:"BHC치킨 제주무수천점",addr:"제주 제주시 노형로 44",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/356610509",lat:33.4627,lon:126.45206,custom:true,naver:true},
+{id:"n4546093194",zh:"牛島海女食堂",kr:"우도해녀식당",addr:"제주 제주시 우도면 우도해안길 440",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/37127116",lat:33.51455,lon:126.94897,custom:true,naver:true},
+{id:"n4546091817",zh:"哈哈呼呼（牛島漢堡）",kr:"하하호호",addr:"제주 제주시 우도면 우도해안길 532",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/21824746",lat:33.52083,lon:126.94846,custom:true,naver:true},
+{id:"n4546090092",zh:"月古家 月汀里本店（黑豬肉）",kr:"월고집 구좌 월정리 본점",addr:"제주 제주시 구좌읍 월정1길 16-1",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1663960338",lat:33.55334,lon:126.79105,custom:true,naver:true},
+{id:"n4546088896",zh:"點點 咖啡廳（점점）",kr:"점점",addr:"제주특별자치도 제주시 조천읍 신촌리 2384",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1533078951",lat:33.53704,lon:126.61526,custom:true,naver:true},
+{id:"n4546087593",zh:"Charlie工廠 東門市場店（甜點）",kr:"찰리공장 제주동문시장본점",addr:"제주 제주시 중앙로13길 21",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1326771119",lat:33.51153,lon:126.52673,custom:true,naver:true},
+{id:"n4546084402",zh:"麥當勞 外都得來速店",kr:"맥도날드 제주 외도DT점",addr:"제주 제주시 일주서로 7339",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1047156856",lat:33.49336,lon:126.43133,custom:true,naver:true},
+{id:"n4546083408",zh:"樹木園路 夜市",kr:"수목원길 야시장",addr:"제주 제주시 은수길 69",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1975398348",lat:33.47021,lon:126.4887,custom:true,naver:true},
+{id:"n4546081443",zh:"감따남 摘橘子體驗農場",kr:"감따남",addr:"제주 서귀포시 월산로 16",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1540496129",lat:33.26207,lon:126.49459,custom:true,naver:true},
+{id:"n4546081097",zh:"뽈살집 本店（黑豬特殊部位烤肉）",kr:"뽈살집 본점",addr:"제주 서귀포시 중정로91번길 41",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/16898812",lat:33.25082,lon:126.56286,custom:true,naver:true},
+{id:"n4546079702",zh:"黃金辣炒雞排＆辣醬刀削麵 阿羅店",kr:"황금닭갈비&장칼국수 아라점",addr:"제주 제주시 아란5길 31-4",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1825351540",lat:33.47381,lon:126.54418,custom:true,naver:true},
+{id:"n4546078572",zh:"姊妹麵館（肉湯麵名店）",kr:"자매국수",addr:"제주 제주시 항골남길 46",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/37060300",lat:33.49855,lon:126.45918,custom:true,naver:true},
+{id:"n4546077879",zh:"長魚統一 老衡店（鰻魚）",kr:"장어통일 노형점",addr:"제주 제주시 남녕로 47",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/32159700",lat:33.49153,lon:126.47975,custom:true,naver:true},
+{id:"n4546077353",zh:"막쇠（黑豬烤肉）",kr:"막쇠",addr:"제주 제주시 제원길 12",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1703576513",lat:33.48894,lon:126.48927,custom:true,naver:true},
+{id:"n4546074655",zh:"돈떵이（黑豬肉）",kr:"돈떵이",addr:"제주 제주시 연동8길 19",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/30834972",lat:33.48413,lon:126.49071,custom:true,naver:true},
+{id:"n4546073169",zh:"하영올레飯店（中式・炸醬麵）",kr:"하영올레반점",addr:"제주 제주시 연동3길 34",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1968811948",lat:33.48684,lon:126.48785,custom:true,naver:true},
+{id:"n4546071761",zh:"濟元蔘雞湯",kr:"제원삼계탕",addr:"제주 제주시 제원길 16",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/16823890",lat:33.48845,lon:126.48924,custom:true,naver:true},
+{id:"n4546068727",zh:"濟州 새우리（蝦料理）",kr:"제주시새우리",addr:"제주 제주시 무근성7길 24",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1000529963",lat:33.51459,lon:126.52074,custom:true,naver:true},
+{id:"n4546067403",zh:"金寧迷宮公園",kr:"제주김녕미로공원",addr:"제주 제주시 구좌읍 만장굴길 122",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/12405292",lat:33.53629,lon:126.77203,custom:true,naver:true},
+{id:"n4546065492",zh:"소금바치 順伊家（濟州家常料理）",kr:"소금바치 순이네",addr:"제주 제주시 구좌읍 해맞이해안로 2196",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/36690197",lat:33.50366,lon:126.91264,custom:true,naver:true},
+{id:"n4546064957",zh:"福子氏煤炭烤肉 城山本店",kr:"복자씨연탄구이 성산본점",addr:"제주 서귀포시 성산읍 해맞이해안로 2764",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/35769744",lat:33.4693,lon:126.91994,custom:true,naver:true},
+{id:"n4546063435",zh:"京美家（牛島海膽刀削麵）",kr:"경미네집",addr:"제주 서귀포시 성산읍 일출로 259",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/21005574",lat:33.46122,lon:126.93342,custom:true,naver:true},
+{id:"n4546061403",zh:"피갈회옥（生魚片）",kr:"피갈회옥",addr:"제주 서귀포시 성산읍 신고로22번길 39",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1977392739",lat:33.43681,lon:126.92119,custom:true,naver:true},
+{id:"n4546060563",zh:"牛島 炸醬麵Man",kr:"우도짜장맨",addr:"제주 제주시 우도면 우도해안길 1132",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/108105804",lat:33.49771,lon:126.96775,custom:true,naver:true},
+{id:"n4546059729",zh:"公川浦食堂（海膽湯・海帶湯）",kr:"공천포식당",addr:"제주 서귀포시 남원읍 공천포로 89",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/16947222",lat:33.26643,lon:126.64255,custom:true,naver:true},
+{id:"n4546056883",zh:"奶奶年糕店 Omegi年糕",kr:"할머니떡집 오메기떡",addr:"제주 서귀포시 중앙로42번길 24",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/13511954",lat:33.24857,lon:126.56415,custom:true,naver:true},
+{id:"n4546055036",zh:"漢潭海邊（涯月海岸步道）",kr:"한담해변",addr:"제주특별자치도 제주시 애월읍 애월리",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/914765966",lat:33.46225,lon:126.31022,custom:true,naver:true},
+{id:"n4546053994",zh:"白帶魚館 涯月本店",kr:"갈치관 제주애월본점",addr:"제주 제주시 애월읍 애월해안로 686",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1500598425",lat:33.48196,lon:126.37523,custom:true,naver:true},
+{id:"n4546051421",zh:"無號小飯桌（韓定食）",kr:"무호소반",addr:"제주 제주시 한림읍 문화길 5-12",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1901780590",lat:33.41405,lon:126.26188,custom:true,naver:true},
+{id:"n4546049075",zh:"涉地可支",kr:"섭지코지",addr:"제주특별자치도 서귀포시 성산읍 고성리",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/13490878",lat:33.42377,lon:126.93078,custom:true,naver:true},
+{id:"n4546048608",zh:"秘密森林（柳杉林道拍照點）",kr:"비밀의숲",addr:"제주특별자치도 제주시 구좌읍 송당리 2173",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1104457165",lat:33.45418,lon:126.75561,custom:true,naver:true},
+{id:"n4546045927",zh:"西歸浦每日偶來市場",kr:"서귀포매일올레시장",addr:"제주특별자치도 서귀포시 서귀동 340",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/13571992",lat:33.24983,lon:126.56345,custom:true,naver:true},
+{id:"n4546045659",zh:"樂天超市 濟州店",kr:"롯데마트 제주점",addr:"제주 제주시 연북로 1",note:"",cat:"超市",nv:"https://map.naver.com/p/entry/place/13059067",lat:33.48242,lon:126.48205,custom:true,naver:true},
+{id:"n4546045299",zh:"正房瀑布",kr:"정방폭포",addr:"제주 서귀포시 칠십리로214번길 37",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/11491630",lat:33.24488,lon:126.57158,custom:true,naver:true},
+{id:"n4546043506",zh:"濟州純蕎麥冷麵",kr:"제주순메밀막국수",addr:"제주 서귀포시 안덕면 녹차분재로 60",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1927504039",lat:33.29125,lon:126.30195,custom:true,naver:true},
+{id:"n4546040743",zh:"Cafe 담아 咖啡廳",kr:"카페담아",addr:"제주 서귀포시 칠십리로 94-1",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1307294634",lat:33.24073,lon:126.56576,custom:true,naver:true},
+{id:"n4546038957",zh:"濟州따이（泰式料理）",kr:"제주따이",addr:"제주 제주시 수덕9길 85-5",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1750988852",lat:33.48247,lon:126.47068,custom:true,naver:true},
+{id:"n4546033633",zh:"山房黑豬血腸 本店",kr:"산방흑돼지순대본점",addr:"제주 서귀포시 안덕면 사계로114번길 53-27",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/108145150",lat:33.24404,lon:126.30402,custom:true,naver:true},
+{id:"n4529007977",zh:"노라바（涯月海景酒吧）",kr:"노라바",addr:"濟州特別自治道 濟州市 涯月邑 新嚴裡 2723-5",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/37438036",lat:33.4777873,lon:126.3648579,custom:true,naver:true},
+{id:"n4529000980",zh:"뽈살집 翰林店（超好吃黑豬肉）",kr:"뽈살집한림점",addr:"濟州特別自治道 濟州市 翰林邑 翰林裡 1252-8",note:"超好吃黑豬肉",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1330534461",lat:33.4156322,lon:126.2692314,custom:true,naver:true},
+{id:"n4529093351",zh:"城山 豐川鰻魚",kr:"성산풍천장어",addr:"濟州特別自治道 西歸浦市 城山邑 古城裡 840-1",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1371817298",lat:33.4348865,lon:126.9110227,custom:true,naver:true},
+{id:"n4529161130",zh:"涉地可支路 本店（餐廳）",kr:"섭지코지로 본점",addr:"濟州特別自治道 西歸浦市 城山邑 城山裡 247-2",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/38257480",lat:33.4656362,lon:126.9325031,custom:true,naver:true},
+{id:"n4529040973",zh:"More More 咖啡廳",kr:"모어모어",addr:"濟州特別自治道 濟州市 舊左邑 下道裡 3075",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1085294238",lat:33.5291466,lon:126.875713,custom:true,naver:true},
+{id:"n4528995748",zh:"明進鮑魚（鮑魚石鍋飯名店）",kr:"명진전복",addr:"濟州特別自治道 濟州市 舊左邑 坪岱裡 515-28",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/17032617",lat:33.5325176,lon:126.8501724,custom:true,naver:true},
+{id:"n4529174328",zh:"海女飯捲 本店",kr:"해녀김밥 본점",addr:"濟州特別自治道 濟州市 朝天邑 鹹德裡 4195",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1989759621",lat:33.5423058,lon:126.6711119,custom:true,naver:true},
+{id:"n4529263618",zh:"橡實廚房 本店（義式）",kr:"도토리키친 본점",addr:"濟州特別自治道 濟州市 三徒二洞 1158-1",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/223026237",lat:33.5153809,lon:126.5185915,custom:true,naver:true},
+{id:"n4529247062",zh:"元祖三姓穴海鮮湯 本店",kr:"원조삼성혈해물탕본점",addr:"濟州特別自治道 濟州市 連洞 312-27",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1051028182",lat:33.4879741,lon:126.4996747,custom:true,naver:true},
+{id:"n4529272507",zh:"Mongre 月汀里店（甜點咖啡）",kr:"몽그레 월정리점",addr:"濟州特別自治道 濟州市 舊左邑 月汀裡 541",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1715341655",lat:33.5556604,lon:126.7956736,custom:true,naver:true},
+{id:"n4529269141",zh:"Mongre 濟州機場店",kr:"몽그레 제주공항점",addr:"濟州特別自治道 濟州市 梨湖一洞 634-3",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/36636561",lat:33.500028,lon:126.4607527,custom:true,naver:true},
+{id:"n4529249007",zh:"新羅免稅店 濟州店",kr:"신라면세점 제주점",addr:"濟州特別自治道 濟州市 連洞 252-18",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/11619777",lat:33.4862081,lon:126.4875507,custom:true,naver:true},
+{id:"n4529248296",zh:"도도름 韓牛＆黑豬",kr:"도도름 한우와흑돈",addr:"濟州特別自治道 濟州市 連洞 272-2",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1675391442",lat:33.4897045,lon:126.4904714,custom:true,naver:true},
+{id:"n4529247700",zh:"涯月 우니담（海膽料理）",kr:"애월 우니담",addr:"濟州特別自治道 濟州市 涯月邑 高內裡 350",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1106239393",lat:33.4725068,lon:126.3483897,custom:true,naver:true},
+{id:"n4529179280",zh:"HETRAS 濟州（香氛）",kr:"헤트라스 제주",addr:"濟州特別自治道 濟州市 連洞 260-23",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/2025488673",lat:33.490124,lon:126.4899276,custom:true,naver:true},
+{id:"n4529177758",zh:"Mandarin Island 濟州店（香水）",kr:"만다린아일랜드 제주점",addr:"濟州特別自治道 濟州市 老衡洞 940-4",note:"香水店",cat:"購物",nv:"https://map.naver.com/p/entry/place/2005978907",lat:33.4857877,lon:126.4857937,custom:true,naver:true},
+{id:"n4529154373",zh:"東門傳統市場",kr:"동문재래시장",addr:"濟州特別自治道 濟州市 이도일동 1436-7",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/11616005",lat:33.5122508,lon:126.5266989,custom:true,naver:true},
+{id:"n4529139068",zh:"Vernis Motel（也是停車場）",kr:"베르니모텔",addr:"濟州特別自治道 濟州市 舊左邑 東福裡 1351-1",note:"也是停車場",cat:"購物",nv:"https://map.naver.com/p/entry/place/1202311589",lat:33.5514617,lon:126.7147963,custom:true,naver:true},
+{id:"n4529137682",zh:"倫敦貝果博物館 停車場（脆友推薦）",kr:"倫敦貝果停車場",addr:"제주특별자치도 제주시 구좌읍 동복리 1352",note:"脆友推薦停車場",cat:"地點",nv:"",lat:33.55163,lon:126.71513,custom:true,naver:true},
+{id:"n4529118561",zh:"西歸浦 에인橘子園咖啡廳",kr:"서귀포 제주에인감귤밭 카페",addr:"濟州特別自治道 西歸浦市 好近洞 693",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1556085331",lat:33.2565743,lon:126.5390214,custom:true,naver:true},
+{id:"n4529118019",zh:"Flowave 咖啡廳",kr:"플로웨이브",addr:"濟州特別自治道 濟州市 翰林邑 翰林裡 56-1",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1893434747",lat:33.4134903,lon:126.2828651,custom:true,naver:true},
+{id:"n4529115577",zh:"우니담 咸德店（海膽）",kr:"우니담 제주함덕점",addr:"濟州特別自治道 濟州市 朝天邑 鹹德裡 1004-30",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1701227821",lat:33.5424871,lon:126.6695094,custom:true,naver:true},
+{id:"n4529099861",zh:"Slow Boat 咖啡廳",kr:"슬로보트",addr:"濟州特別自治道 濟州市 涯月邑 下貴一裡 330",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1980379856",lat:33.4900992,lon:126.4143738,custom:true,naver:true},
+{id:"n4529097508",zh:"Haeilli 海景咖啡廳",kr:"해일리 카페",addr:"濟州特別自治道 西歸浦市 城山邑 城山裡 308",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1742463886",lat:33.4688754,lon:126.935406,custom:true,naver:true},
+{id:"n4529095336",zh:"뚱딴지 涯月黑豬肉 本店",kr:"뚱딴지 애월흑돼지 본점",addr:"濟州特別自治道 濟州市 涯月邑 新嚴裡 2814-1",note:"",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/16870210",lat:33.4745618,lon:126.3547806,custom:true,naver:true},
+{id:"n4529090315",zh:"Beril 咖啡廳",kr:"베릴",addr:"濟州特別自治道 濟州市 翰林邑 挾才裡 1698",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1923774307",lat:33.3975522,lon:126.2425592,custom:true,naver:true},
+{id:"n4529054195",zh:"All That Coffee 濟州",kr:"All That咖啡济州",addr:"濟州特別自治道 濟州市 涯月邑 涯月裡 2533-1",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1949590732",lat:33.4627537,lon:126.3100965,custom:true,naver:true},
+{id:"n4529051685",zh:"The Cliff（中文海邊酒吧咖啡）",kr:"더클리프",addr:"濟州特別自治道 西歸浦市 穡達洞 2950-17",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1667822207",lat:33.2444575,lon:126.414929,custom:true,naver:true},
+{id:"n4529048539",zh:"해지개 海景咖啡廳",kr:"해지개",addr:"濟州特別自治道 濟州市 涯月邑 涯月裡 2555",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1412199535",lat:33.4642028,lon:126.3090123,custom:true,naver:true},
+{id:"n4529046709",zh:"Odrang Bakery 咸德店（大蒜麵包）",kr:"오드랑베이커리 함덕점",addr:"濟州特別自治道 濟州市 朝天邑 鹹德裡 270-1",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/16886040",lat:33.5421005,lon:126.6715215,custom:true,naver:true},
+{id:"n4529046377",zh:"Odrang Bakery & Cafe 新村店",kr:"오드랑베이커리 앤 카페 신촌점",addr:"濟州特別自治道 濟州市 朝天邑 新村裡 1615-2",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1979714369",lat:33.5249027,lon:126.6205701,custom:true,naver:true},
+{id:"n4529017426",zh:"濟州市民俗五日市場",kr:"제주시민속오일시장",addr:"濟州特別自治道 濟州市 道頭一洞 1212",note:"",cat:"購物",nv:"https://map.naver.com/p/entry/place/13224752",lat:33.4970009,lon:126.4753129,custom:true,naver:true},
+{id:"n4529009958",zh:"東京飯桌（黑白大廚・鰻魚）",kr:"동경밥상",addr:"濟州特別自治道 濟州市 涯月邑 下貴一裡 1620-5",note:"黑白大廚 鰻魚",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/37116020",lat:33.4854992,lon:126.4078906,custom:true,naver:true},
+{id:"n4528998444",zh:"烏龍麵 花傳（黑白大廚2 鄭鎬泳）",kr:"우동카덴",addr:"濟州特別自治道 濟州市 朝天邑 橋來裡 550-1",note:"黑白大廚2 鄭鎬泳",cat:"餐廳",nv:"https://map.naver.com/p/entry/place/1066096453",lat:33.4358381,lon:126.6792956,custom:true,naver:true},
+{id:"n4528992689",zh:"倫敦貝果博物館 濟州",kr:"런던베이글뮤지엄 제주",addr:"濟州特別自治道 濟州市 舊左邑 東福裡 719-1",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1422544447",lat:33.5535451,lon:126.7154181,custom:true,naver:true},
+{id:"n4528991502",zh:"濟州亂打秀 專用劇場",kr:"제주난타",addr:"濟州特別自治道 濟州市 梧登洞 10-1",note:"",cat:"生活",nv:"https://map.naver.com/p/entry/place/1299245270",lat:33.4458262,lon:126.5479101,custom:true,naver:true},
+{id:"n4528988590",zh:"우무（濟州布丁）",kr:"우무",addr:"濟州特別自治道 濟州市 翰林邑 甕浦裡 324-3",note:"",cat:"咖啡廳",nv:"https://map.naver.com/p/entry/place/1537940586",lat:33.4059242,lon:126.2564147,custom:true,naver:true},
+{id:"n4528986100",zh:"9.81 Park（重力卡丁車）",kr:"9.81파크 제주",addr:"濟州特別自治道 濟州市 涯月邑 於音裡 3916",note:"",cat:"景點",nv:"https://map.naver.com/p/entry/place/1666616962",lat:33.3900368,lon:126.3665089,custom:true,naver:true}
+];
+var NAVER_MEMO={"35": "免費·高甜度漢拿峰500g包裝 / 濟州芒果果凍 / 漢拿峰果凍 （3選1）", "61": "迷宮公園 (Maze Land)省16,000 韓元", "49": "免費入場，省15,000", "41": "免費領取橘子小鏡子", "37": "免費領取精緻冰箱貼", "57": "免費兌換美式咖啡或冰茶，約省6000", "48": "免費兌換美式咖啡或抹茶拿鐵，約省6000", "65": "免費泡足浴，省12,000韓元", "21": "免費入場，省15,000韓元", "62": "基礎路線直接免費體驗，省11000！", "31": "持濟州PASS可免費兌換原味甜甜圈一份", "24": "🏷️ 票價：單人 KRW 25000 ⭐ 使用 JejuAllPass 購票成人價 KRW9,900，", "4": "持Jeju All Pass還可以獲得抹茶霜淇淋！", "50": "🏷️ 票價：成人 KRW 19000｜兒童 KRW 16000 ⭐ 使用 JejuAllPass 購票", "45": "\"Plant 827 플랜트827 🎁 出示濟州 AllPass｜美式咖啡／濟州柑橘汁擇一 橘子汁省"};
+
+/* Inject Leaflet CSS */
+(function(){
+var s=document.createElement('style');
+s.textContent='.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}.leaflet-container{overflow:hidden}.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none}.leaflet-tile::selection{background:transparent}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0}.leaflet-marker-icon,.leaflet-marker-shadow{display:block}.leaflet-container .leaflet-overlay-pane svg{max-width:none!important;max-height:none!important}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer,.leaflet-container .leaflet-tile{max-width:none!important;max-height:none!important;width:auto;padding:0}.leaflet-container img.leaflet-tile{mix-blend-mode:plus-lighter}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none}.leaflet-container{-webkit-tap-highlight-color:transparent}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,.4);color:#0078A8}.leaflet-tile{filter:inherit;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800}.leaflet-overlay-pane svg{-moz-user-select:none}.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-shadow-pane{z-index:500}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto}.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}.leaflet-control{float:left;clear:both}.leaflet-right .leaflet-control{float:right}.leaflet-top .leaflet-control{margin-top:10px}.leaflet-bottom .leaflet-control{margin-bottom:10px}.leaflet-left .leaflet-control{margin-left:10px}.leaflet-right .leaflet-control{margin-right:10px}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity .2s linear;-moz-transition:opacity .2s linear;transition:opacity .2s linear}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0}.leaflet-zoom-anim .leaflet-zoom-animated{will-change:transform;-webkit-transition:-webkit-transform .25s cubic-bezier(0,0,.25,1);-moz-transition:-moz-transform .25s cubic-bezier(0,0,.25,1);transition:transform .25s cubic-bezier(0,0,.25,1)}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none}.leaflet-interactive{cursor:pointer}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair}.leaflet-popup-pane,.leaflet-control{cursor:auto}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;cursor:grabbing}.leaflet-image-layer,.leaflet-pane>svg path,.leaflet-tile-container{pointer-events:none}.leaflet-image-layer.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:visiblePainted;pointer-events:auto}.leaflet-container a.leaflet-active{outline:2px solid orange}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,.5)}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,.65);border-radius:4px}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:#000}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block}.leaflet-bar a:hover,.leaflet-bar a:focus{background-color:#f4f4f4}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px "Lucida Console",Monaco,monospace;text-indent:1px}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px}.leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;min-height:1px}.leaflet-popup-content p{margin:17px 0}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);transform:rotate(45deg)}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:white;color:#333;box-shadow:0 3px 14px rgba(0,0,0,.4)}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:transparent}.leaflet-container a.leaflet-popup-close-button:hover,.leaflet-container a.leaflet-popup-close-button:focus{color:#585858}.leaflet-popup-scrolled{overflow:auto}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255,255,255,.8);margin:0}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;line-height:1.4}.leaflet-control-attribution a{text-decoration:none}.leaflet-control-attribution a:hover,.leaflet-control-attribution a:focus{text-decoration:underline}.leaflet-attribution-flag{display:inline!important;vertical-align:baseline!important;width:1em;height:.6669em}.leaflet-left .leaflet-control-scale{margin-left:5px}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;white-space:nowrap;-moz-box-sizing:border-box;box-sizing:border-box;background:rgba(255,255,255,.8)}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777}.leaflet-touch .leaflet-control-attribution,.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{box-shadow:none}.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{border:2px solid rgba(0,0,0,.2);background-clip:padding-box}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}.leaflet-tooltip.leaflet-interactive{cursor:pointer;pointer-events:auto}.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:""}.leaflet-tooltip-bottom{margin-top:6px}.leaflet-tooltip-top{margin-top:-6px}.leaflet-tooltip-bottom:before,.leaflet-tooltip-top:before{left:50%;margin-left:-6px}.leaflet-tooltip-top:before{bottom:0;margin-bottom:-12px;border-top-color:#fff}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff}.leaflet-tooltip-left{margin-left:-6px}.leaflet-tooltip-right{margin-left:6px}.leaflet-tooltip-left:before{right:0;margin-right:-12px;border-left-color:#fff}.leaflet-tooltip-right:before{left:0;margin-left:-12px;border-right-color:#fff}';
+document.head.appendChild(s);
+})();
+
+/* ---------- State ---------- */
+var AIRPORT={id:'air',zh:'濟州國際機場',kr:'제주국제공항',en:'Jeju International Airport',lat:33.5104,lon:126.4914,h:'',addr:'',note:'',custom:true,air:true,stay:0};
+var DEFAULT_DAYS=[
+  {date:'2026-11-06',start:'11:30',note:'台北 07:50 出發 → 濟州 10:45 抵達，取車後出發'},
+  {date:'2026-11-07',start:'09:00',note:''},
+  {date:'2026-11-08',start:'09:00',note:''},
+  {date:'2026-11-09',start:'09:00',note:''},
+  {date:'2026-11-10',start:'09:00',note:''},
+  {date:'2026-11-11',start:'07:00',note:'10:10 起飛 → 台北 11:25，建議 08:30 前抵達機場還車'}
+];
+var state={stars:[],custom:[],days:[]};
+var STORE_KEY='jeju-ap-v2';
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
+function deepCopy(o){return JSON.parse(JSON.stringify(o));}
+
+function defaultDays(){return DEFAULT_DAYS.map(function(d){return{date:d.date,start:d.start,note:d.note,items:[]};});}
+function load(){
+  try{
+    var raw=localStorage.getItem(STORE_KEY);
+    if(raw){var o=JSON.parse(raw);if(o&&o.days){state=o;return;}}
+    var old=localStorage.getItem('jeju-ap-stars');
+    if(old){state.stars=JSON.parse(old);}
+    else state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});
+  }catch(e){state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});}
+  state.custom=state.custom||[];state.hidden=state.hidden||[];state.edits=state.edits||{};if(!Array.isArray(state.passes)||!state.passes.length) state.passes=[{hours:72,mode:'auto',start:''}];
+  state.days=state.days&&state.days.length?state.days:defaultDays();
+}
+var applyingRemote=false;
+function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){}if(!applyingRemote) pushCloud();}
+load();
+if(!state.days||!state.days.length) state.days=defaultDays();
+if(!state.hidden) state.hidden=[];
+if(!state.edits) state.edits={};
+if(!Array.isArray(state.passes)||!state.passes.length) state.passes=[{hours:72,mode:'auto',start:''}];
+
+function isStarred(key){return state.stars.indexOf(key)>=0;}
+function keyOf(s){return s.custom?s.id:s.id;}
+function getSpot(key){
+  if(key==='air') return AIRPORT;
+  if(typeof key==='string'&&key.charAt(0)==='c'){for(var i=0;i<state.custom.length;i++) if(state.custom[i].id===key) return state.custom[i];return null;}
+  if(typeof key==='string'&&key.charAt(0)==='n'){for(var n=0;n<NAVER.length;n++) if(NAVER[n].id===key) return NAVER[n];return null;}
+  for(var j=0;j<SPOTS.length;j++) if(SPOTS[j].id===key) return SPOTS[j];
+  return null;
+}
+function isHidden(k){return state.hidden.indexOf(k)>=0;}
+function allSpots(){return SPOTS.concat(NAVER,state.custom).filter(function(s){return !isHidden(s.id)});}
+function hiddenSpots(){return SPOTS.concat(NAVER,state.custom).filter(function(s){return isHidden(s.id)});}
+var ORIG={};
+var EDIT_FIELDS=['zh','addr','h','note','tel','bz','nv','nvq','lat','lon','stay','type'];
+function getBase(key){if(typeof key==='string'&&key.charAt(0)==='c') return null;return getSpot(key);}
+function applyEdits(){
+  var ed=state.edits||{};
+  Object.keys(ORIG).forEach(function(k){if(!ed[k]){var s=getBase(/^\d+$/.test(k)?parseInt(k):k);if(s){EDIT_FIELDS.forEach(function(f){if(f in ORIG[k]) s[f]=ORIG[k][f];else delete s[f];});}delete ORIG[k];}});
+  Object.keys(ed).forEach(function(k){
+    var key=/^\d+$/.test(k)?parseInt(k):k;var s=getBase(key);if(!s) return;
+    if(!ORIG[k]){ORIG[k]={};EDIT_FIELDS.forEach(function(f){if(f in s) ORIG[k][f]=s[f];});}
+    EDIT_FIELDS.forEach(function(f){if(ed[k][f]!==undefined&&ed[k][f]!==null) s[f]=ed[k][f];});
+    s.edited=true;
+  });
+  SPOTS.concat(NAVER).forEach(function(s){if(!ed[String(s.id)]) delete s.edited;});
+}
+function memoOf(s){return (!s.custom&&NAVER_MEMO[String(s.id)])||'';}
+function catOf(s){if(isStarred(s.id)) return 'star';if(s.custom) return 'custom';return s.free?'free':'discount';}
+function dayLabel(d,i){
+  var dt=new Date(d.date+'T00:00:00');var wd=['日','一','二','三','四','五','六'][dt.getDay()];
+  return {top:'Day '+(i+1),sub:(dt.getMonth()+1)+'/'+dt.getDate()+'（'+wd+'）'};
+}
+function daysOfSpot(key){var r=[];state.days.forEach(function(d,i){d.items.forEach(function(it){if(it.key===key) r.push(i);});});return r;}
+
+/* ---------- Naver Map open (app on phones, web on desktop) ---------- */
+var IS_PHONE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function naverQuery(s){return s.nvq||s.addr||s.kr||s.zh||'';}
+function naverWeb(s){if(s.nv&&/^https?:/i.test(s.nv)) return s.nv;return 'https://map.naver.com/p/search/'+encodeURIComponent(naverQuery(s));}
+function naverPlaceId(s){
+  if(s.nid) return s.nid;
+  var m=s.nv&&s.nv.match(/(?:place|entry\/place|restaurant|cafe|hospital|accommodation|attraction)\/(\d+)/);
+  return m?m[1]:null;
+}
+function naverApp(s){
+  var id=naverPlaceId(s);
+  if(id) return 'nmap://place?id='+id+'&appname=jeju.allpass';
+  if(s.nvq) return 'nmap://search?query='+encodeURIComponent(s.nvq)+'&appname=jeju.allpass';
+  if(s.nv&&/^https?:/i.test(s.nv)) return null;
+  return 'nmap://search?query='+encodeURIComponent(naverQuery(s))+'&appname=jeju.allpass';
+}
+function openNaverApp(key){
+  var s=getSpot(key);if(!s) return;var url=naverApp(s);
+  if(!url){window.open(s.nv,'_blank','noopener');return;}
+  if(/Android/i.test(navigator.userAgent)) url='intent://'+url.replace('nmap://','')+'#Intent;scheme=nmap;package=com.nhn.android.nmap;end';
+  location.href=url;
+}
+function naverBtn(s,cls){
+  if(s.air||(!s.nv&&!s.custom)) return '';
+  var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
+  var web='<a href="'+esc(naverWeb(s))+'" target="_blank" rel="noopener" class="map-link naver'+(cls||'')+'" onclick="event.stopPropagation()">N Naver</a>';
+  if(!IS_PHONE) return web;
+  return web+'<button class="map-link naver app'+(cls||'')+'" title="用 Naver Map App 開啟" onclick="event.stopPropagation();openNaverApp('+kq+')">App</button>';
+}
+
+/* ---------- Kakao Places search + geocoding (front-end SDK, domain-restricted key) ---------- */
+var kakaoReady=false,kakaoResults=null,kakaoQuery='';
+(function(){
+  if(typeof kakao==='undefined'||!kakao.maps||!kakao.maps.load) return;
+  try{kakao.maps.load(function(){kakaoReady=!!(kakao.maps.services);if(kakaoReady&&typeof renderList==='function') renderList();});}catch(e){}
+})();
+var JEJU_RECT='126.10,33.10,127.00,33.60';
+function kakaoSearch(q,cb){
+  if(!kakaoReady){cb(null,'Kakao 尚未就緒（此網域可能未在 Kakao 註冊）');return;}
+  var ps=new kakao.maps.services.Places();
+  var kw=/제주|jeju/i.test(q)?q:q+' 제주';
+  ps.keywordSearch(kw,function(data,status){
+    if(status===kakao.maps.services.Status.OK){
+      var out=data.map(function(d){return {name:d.place_name,addr:d.road_address_name||d.address_name,cat:(d.category_name||'').split(' > ').pop(),tel:d.phone||'',url:d.place_url||'',lat:parseFloat(d.y),lon:parseFloat(d.x),kid:d.id};})
+        .filter(function(r){return r.lat>33.1&&r.lat<33.62&&r.lon>126.1&&r.lon<127.0;});
+      cb(out);
+    }
+    else if(status===kakao.maps.services.Status.ZERO_RESULT) cb([]);
+    else cb(null,'搜尋失敗（'+status+'）');
+  },{size:15});
+}
+function kakaoGeocode(addr,cb){
+  if(!kakaoReady){cb(null);return;}
+  var g=new kakao.maps.services.Geocoder();
+  g.addressSearch(addr,function(res,status){
+    if(status===kakao.maps.services.Status.OK&&res[0]) cb({lat:parseFloat(res[0].y),lon:parseFloat(res[0].x)});
+    else kakaoSearch(addr,function(r){cb(r&&r[0]?{lat:r[0].lat,lon:r[0].lon,hit:r[0]}:null);});
+  });
+}
+function runKakaoSearch(){
+  var q=searchInput.value.trim();if(!q) return;kakaoQuery=q;kakaoResults='loading';renderList();
+  kakaoSearch(q,function(res,err){kakaoResults=res||[];kakaoErr=err||'';renderList();});
+}
+var kakaoErr='';
+function clearKakao(){kakaoResults=null;kakaoQuery='';renderList();}
+function kakaoResultHtml(){
+  if(kakaoResults==null) return '';
+  var head='<div class="khead"><span><span class="k" style="background:#FEE500;color:#191919;font-weight:800;border-radius:4px;padding:1px 5px;font-size:11px">Kakao</span> 「'+esc(kakaoQuery)+'」搜尋結果'+(Array.isArray(kakaoResults)?' '+kakaoResults.length+' 筆':'')+'</span><button class="sm-btn" onclick="clearKakao()">關閉</button></div>';
+  if(kakaoResults==='loading') return head+'<div class="itin-empty">搜尋中…</div>';
+  if(kakaoErr) return head+'<div class="itin-empty">'+esc(kakaoErr)+'</div>';
+  if(!kakaoResults.length) return head+'<div class="itin-empty">Kakao 找不到，換個關鍵字（韓文最準）試試</div>';
+  return head+kakaoResults.map(function(r,i){
+    var days=state.days.map(function(d,di){var l=dayLabel(d,di);return '<button class="day-chip" onclick="addKakao('+i+','+di+')">'+l.top+'</button>';}).join('');
+    return '<div class="kres"><div class="nm">'+esc(r.name)+'</div><div class="ad">'+esc(r.addr)+(r.tel?' · '+esc(r.tel):'')+'</div>'+(r.cat?'<div class="ct">'+esc(r.cat)+'</div>':'')+
+      '<div class="acts"><button class="sm-btn primary" onclick="addKakao('+i+',null)">＋ 加入景點</button>'+(r.url?'<a class="map-link kakao" href="'+esc(r.url)+'" target="_blank" rel="noopener">K Kakao</a>':'')+'<span style="font-size:11px;color:var(--text-muted);align-self:center">加入並排入：</span>'+days+'</div></div>';
+  }).join('');
+}
+function addKakao(i,dayIdx){
+  if(!Array.isArray(kakaoResults)) return;var r=kakaoResults[i];if(!r||isNaN(r.lat)) return;
+  var exist=state.custom.find(function(c){return c.kid&&c.kid===r.kid});
+  var id=exist?exist.id:'c'+Date.now();
+  var s=exist||{id:id,custom:true};
+  s.zh=r.name;s.kr=r.name;s.addr=r.addr;s.tel=r.tel;s.h=s.h||'';s.note=s.note||(r.cat||'');s.stay=s.stay!=null?s.stay:60;s.lat=r.lat;s.lon=r.lon;s.ku=r.url;s.kid=r.kid;s.nv=s.nv||'';s.nvq=s.nvq||r.name;s.en='';s.bz='';s.be='';
+  if(!exist) state.custom.push(s);
+  var m=ensureMarker(s);if(!map.hasLayer(m)) m.addTo(map);
+  save();
+  if(dayIdx!=null){addToDay(id,dayIdx);}else{toast('已加入景點：'+r.name);renderList();}
+  flyTo(id);
+}
+function kakaoBtn(s){return s.ku?'<a href="'+esc(s.ku)+'" target="_blank" rel="noopener" class="map-link kakao" onclick="event.stopPropagation()">K Kakao</a>':'';}
+function geocodeCustomForm(){
+  var addr=document.getElementById('cAddr').value.trim()||document.getElementById('cName').value.trim();
+  if(!addr){toast('請先填地址或名稱');return;}
+  if(!kakaoReady){toast('Kakao 定位尚未就緒');return;}
+  toast('定位中…');
+  kakaoGeocode(addr,function(r){
+    if(!r){toast('找不到這個地址，改用地圖點選');return;}
+    document.getElementById('cCoord').value=r.lat.toFixed(6)+', '+r.lon.toFixed(6);updateCoordHint();
+    if(r.hit&&!document.getElementById('cAddr').value.trim()) document.getElementById('cAddr').value=r.hit.addr;
+    toast('已定位'+(r.hit?'：'+r.hit.name:''));
+  });
+}
+
+/* ---------- Map ---------- */
+applyEdits();
+var map=L.map('map',{zoomControl:true}).setView([33.4,126.56],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'Leaflet | OpenStreetMap',maxZoom:18}).addTo(map);
+var markers={};var activeKey=null;var routeLayer=L.layerGroup().addTo(map);
+var dayOnly=(function(){try{return localStorage.getItem('jeju-ap-dayonly')==='1';}catch(e){return false;}})();
+function itinActive(){return document.getElementById('pane-itin').classList.contains('active');}
+var DayOnlyCtl=L.Control.extend({onAdd:function(){var d=L.DomUtil.create('div','dayonly-ctl leaflet-bar');d.innerHTML='<button id="dayOnlyBtn" type="button"></button>';L.DomEvent.disableClickPropagation(d);d.querySelector('button').addEventListener('click',function(){dayOnly=!dayOnly;try{localStorage.setItem('jeju-ap-dayonly',dayOnly?'1':'0');}catch(e){}syncMarkers();drawRoute(dayOnly);toast(dayOnly?'地圖只顯示這一天的行程':'地圖顯示全部景點');});return d;}});
+map.addControl(new DayOnlyCtl({position:'topright'}));
+function updateDayOnlyBtn(){var b=document.getElementById('dayOnlyBtn');if(!b) return;var show=itinActive();b.parentNode.style.display=show?'':'none';b.className=dayOnly?'on':'';b.textContent=dayOnly?'🗺 顯示全部景點':'📅 只看 Day '+(curDay+1)+' 行程';}
+function matchesFilter(s){
+  var q=searchInput.value.toLowerCase();var c=catOf(s);
+  if(currentFilter==='hidden') return false;
+  if(currentFilter!=='all'&&c!==currentFilter) return false;
+  if(!q) return true;
+  return [s.zh,s.kr,s.en,s.bz,s.be,s.addr,s.note].some(function(f){return f&&String(f).toLowerCase().indexOf(q)>=0;});
+}
+function syncMarkers(){
+  var only=dayOnly&&itinActive();var keys={};
+  if(only){var d=state.days[curDay];if(d) d.items.forEach(function(it){keys[String(it.key)]=1;});}
+  Object.keys(markers).forEach(function(k){
+    var kk=/^\d+$/.test(k)?parseInt(k):k;var m=markers[k];var s=getSpot(kk);if(!s) return;
+    var vis=only?!!keys[String(kk)]:(s.air?true:(!isHidden(kk)&&matchesFilter(s)));
+    if(vis){if(!map.hasLayer(m)) m.addTo(map);}else if(map.hasLayer(m)) map.removeLayer(m);
+  });
+  updateDayOnlyBtn();
+}
+
+var PIN_COLORS={star:'#E11D48',free:'#059669',discount:'#D97706',custom:'#7C3AED',air:'#475569'};
+var PIN_PATH='M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z';
+var ICONS={
+  food:'M11 9H9V2H7v7H5V2H3v7c0 2.1 1.7 3.9 3.8 4L6.5 22h3l-.3-9c2.1-.1 3.8-1.9 3.8-4V2h-2v7zm5-3v8h2.5v8H21V2c-2.8 0-5 2.2-5 4z',
+  cafe:'M20 3H4v10c0 2.2 1.8 4 4 4h6c2.2 0 4-1.8 4-4v-3h2c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 5h-2V5h2v3zM2 21h18v-2H2v2z',
+  sight:'M12 3L2 21h20L12 3zm0 4.5L18.2 19H5.8L12 7.5zM18.5 4a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  shop:'M18 6h-2c0-2.2-1.8-4-4-4S8 3.8 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z',
+  fun:'M22 10v6h-2v-6h2zM6 6h12c1.1 0 2 .9 2 2v2h-1v6c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2v-6H4V8c0-1.1.9-2 2-2zm1 9h2v-4H7v4zm8 0h2v-4h-2v4z',
+  stay:'M7 13c1.7 0 3-1.3 3-3S8.7 7 7 7s-3 1.3-3 3 1.3 3 3 3zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9c0-2.2-1.8-4-4-4z',
+  air:'M21 16v-2l-8-5V3.5c0-.8-.7-1.5-1.5-1.5S10 2.7 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z',
+  dot:'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z'
+};
+var TYPE_LABEL={auto:'自動判斷',food:'餐廳',cafe:'咖啡／甜點',sight:'景點／自然',shop:'購物',fun:'體驗／樂園',stay:'住宿'};
+function typeOf(s){
+  if(s.air) return 'air';
+  if(s.type&&ICONS[s.type]) return s.type;
+  var t=[s.cat,s.zh,s.kr,s.bz,s.note].filter(Boolean).join(' ');
+  if(/숙박|호텔|모텔|펜션|리조트|住宿|飯店|酒店|民宿|旅館|賓館|Hotel|Motel|Resort|Pension/i.test(t)) return 'stay';
+  if(/兒童遊樂|遊樂場|Active Park|Innerlith|媒體藝術/i.test(t)) return 'fun';
+  if(/카페|咖啡|Cafe|Coffee|커피|甜甜圈|甜點|Bakery|베이커리|冰淇淋|Gelato|抹茶|茶博物館|Donut|貝果|布丁|年糕|Dessert|디저트|Delmundo|Omegi/i.test(t)) return 'cafe';
+  if(/餐廳|음식|식당|고기|黑豬|黑豚|麵|鰻魚|海鮮|炸雞|烤肉|飯|湯|拉麵|泡麵|Restaurant|自助餐|白帶魚|漢堡|Pizza|義大利麵|정식|국수|치킨|鮑魚|海女|生魚片|蔘雞|刀削|飯捲|炸醬|Lounge|酒吧|肉代表|黑豬肉|韓牛|蓋飯|定食|食堂/i.test(t)) return 'food';
+  if(/卡丁車|ATV|騎馬|승마|射擊|釣魚|樂園|主題公園|迷宮|體驗|水舞|XR|機器人|Kart|카트|Park|休閒|Running Man|動物園|Zoo|農場|採摘|亂打|汗蒸|海水樂園|4D|Maze|9\.81/i.test(t)) return 'fun';
+  if(/購物|쇼핑|紀念品|免稅|市場|超市|마트|商街|Souvenir|禮物|選物|香水|香氛|文創|夜市|innisfree|Object|Lovely|Mandal|Je Story|About Jeju|By Jeju|Remember Jeju|Jeje House|DIY|項鍊|鑰匙扣/i.test(t)) return 'shop';
+  if(/博物館|美術館|花園|庭園|森林|海岸|海邊|瀑布|峰|公路|景點|觀察園|Garden|Museum|Hill|Forest|火山口|白鹿潭|涉地可支|河口|地下|客運站|港|中心|Land|莊園|公園|Manor/i.test(t)) return 'sight';
+  return 'dot';
+}
+function iconFor(s,order){
+  var kind=s.air?'air':isStarred(s.id)?'star':s.custom?'custom':s.free?'free':'discount';
+  var color=PIN_COLORS[kind];var ic=ICONS[typeOf(s)]||ICONS.dot;
+  var badge=order?'<span class="order-badge">'+order+'</span>':'';
+  return L.divIcon({className:'pin-wrap',html:'<div class="pin"><svg class="shape" viewBox="0 0 34 44"><path d="'+PIN_PATH+'" fill="'+color+'" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="'+ic+'"/></svg>'+badge+'</div>',iconSize:[34,44],iconAnchor:[17,43],popupAnchor:[0,-40]});
+}
+function iconForOld(s,order){
+  var cls=s.air?'marker-air':isStarred(s.id)?'marker-star':s.custom?'marker-custom':s.free?'marker-free':'marker-discount';
+  var label=s.air?'✈':s.naver?'N':s.custom?'✚':s.id;
+  var badge=order?'<span class="order-badge">'+order+'</span>':'';
+  return L.divIcon({className:'',html:'<div class="custom-marker '+cls+'" style="position:relative"><span>'+label+'</span>'+badge+'</div>',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-30]});
+}
+function dayChips(key){
+  return state.days.map(function(d,i){var l=dayLabel(d,i);return '<button class="day-chip" onclick="addToDay(\''+String(key).replace(/'/g,"\\'")+'\','+i+')">'+l.top+' '+l.sub+'</button>';}).join('');
+}
+function popupContent(s){
+  var starred=isStarred(s.id);
+  var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
+  var links='';
+  links+=naverBtn(s)+kakaoBtn(s);
+  if(s.gl) links+='<a href="'+esc(s.gl)+'" target="_blank" rel="noopener" class="map-link google">G Google</a>';
+  if(!s.air) links+='<button class="map-link edit" onclick="openEdit('+kq+')">✎ 編輯</button>';
+  var sub=s.custom?((s.cat?'['+esc(s.cat)+'] ':'')+(s.kr&&s.kr!==s.zh?esc(s.kr)+' · ':'')+(s.addr?esc(s.addr):(s.naver?'Naver 收藏':'自訂景點'))):esc(s.kr)+' &middot; '+esc(s.en);
+  var memo=s.custom?s.note:memoOf(s);
+  var benefit=(s.custom?'':'<div class="popup-benefit">'+esc(s.bz)+'</div>')+(memo?'<div class="popup-benefit">📝 '+esc(memo)+'</div>':'');
+  var meta='';if(s.h) meta+='<div>&#128339; '+esc(s.h)+'</div>';if(s.tel) meta+='<div>&#128222; '+esc(s.tel)+'</div>';
+  var ds=daysOfSpot(s.id).map(function(i){return 'Day'+(i+1)}).join(', ');
+  if(ds) meta+='<div>📅 已排入 '+ds+'</div>';
+  var starBtn=s.air?'':'<button class="pbtn '+(starred?'rm-star':'add-star')+'" onclick="toggleStar('+kq+')">'+(starred?'&#9733; 移出必去':'&#9734; 加入必去')+'</button>';
+  return '<div class="popup-inner"><div class="popup-title">'+esc(s.zh)+(starred?' <span style="color:var(--star)">&#9733;</span>':'')+'</div><div class="popup-sub">'+sub+'</div>'+benefit+'<div class="popup-meta">'+meta+'</div><div class="popup-links">'+links+starBtn+'<button class="pbtn to-day" onclick="showDayPicker(this,'+kq+')">＋加入行程</button>'+(s.air?'':'<button class="pbtn rm-star" onclick="hideSpot('+kq+')">🗑 刪除</button>')+'</div><div id="pp-daypick"></div></div>';
+}
+function showDayPicker(btn,key){
+  var box=document.getElementById('pp-daypick');if(!box) return;
+  box.innerHTML=box.innerHTML?'':'<div class="day-picker"><span class="lbl">選擇加入哪一天：</span>'+dayChips(key)+'</div>';
+}
+function ensureMarker(s){
+  if(s.lat==null||s.lon==null) return null;
+  var m=markers[s.id];
+  if(!m){m=L.marker([s.lat,s.lon],{icon:iconFor(s)});m.bindPopup(popupContent(s),{maxWidth:300});m.on('click',function(){highlightCard(s.id)});markers[s.id]=m;}
+  else{m.setLatLng([s.lat,s.lon]);m.setIcon(iconFor(s));m.getPopup().setContent(popupContent(s));}
+  return m;
+}
+SPOTS.forEach(function(s){ensureMarker(s).addTo(map);});
+ensureMarker(AIRPORT);
+function refreshMarker(key){var s=getSpot(key);if(s&&markers[key]){markers[key].setIcon(iconFor(s));markers[key].getPopup().setContent(popupContent(s));}}
+
+/* ---------- Spots pane ---------- */
+var spotList=document.getElementById('spotList'),searchInput=document.getElementById('search'),countBadge=document.getElementById('count');
+var currentFilter='all';
+
+function renderList(){
+  var hb=document.getElementById('hiddenBtn');hb.style.display=state.hidden.length?'':'none';hb.textContent='🗑 已刪除 '+state.hidden.length;
+  if(currentFilter==='hidden'){renderHiddenList();return;}
+  var q=searchInput.value.toLowerCase();
+  var list=allSpots().filter(function(s){
+    var c=catOf(s);
+    if(currentFilter!=='all'&&c!==currentFilter) return false;
+    if(!q) return true;
+    return [s.zh,s.kr,s.en,s.bz,s.be,s.addr,s.note].some(function(f){return f&&String(f).toLowerCase().indexOf(q)>=0;});
+  });
+  countBadge.textContent=list.length;
+  document.getElementById('logoCount').textContent=(SPOTS.length+NAVER.length+state.custom.length)+' Spots';
+  document.getElementById('tabSpotsN').textContent=SPOTS.length+NAVER.length+state.custom.length;
+  spotList.innerHTML=list.map(function(s){
+    var starred=isStarred(s.id);var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
+    var tags='';
+    if(starred) tags+='<span class="tag tag-star">必去</span>';
+    if(s.edited) tags+='<span class="tag" style="background:var(--surface-hover);color:var(--text-secondary)">已編輯</span>';
+    if(s.custom) tags+='<span class="tag tag-custom">非Pass</span>';
+    else tags+=s.free?'<span class="tag tag-free">免費</span>':'<span class="tag tag-discount">折扣</span>';
+    daysOfSpot(s.id).forEach(function(i){tags+='<span class="tag tag-day">Day'+(i+1)+'</span>';});
+    var sub=s.custom?((s.cat?'['+esc(s.cat)+'] ':'')+(s.kr&&s.kr!==s.zh?esc(s.kr)+' · ':'')+esc(s.addr||(s.naver?'Naver 收藏':'自訂景點'))):esc(s.kr)+' &middot; '+esc(s.en);
+    var mm=s.custom?'':memoOf(s);
+    var ben=s.custom?esc(s.note||(s.h?'🕐 '+s.h:'')):esc(s.bz)+(mm?' · 📝 '+esc(mm):'');
+    var links='';
+    links+=naverBtn(s)+kakaoBtn(s);
+    if(s.gl) links+='<a href="'+esc(s.gl)+'" target="_blank" rel="noopener" class="map-link google" onclick="event.stopPropagation()">G Google</a>';
+    links+='<button class="map-link edit" onclick="event.stopPropagation();openEdit('+kq+')">✎ 編輯</button>';
+    return '<div class="spot-card'+(activeKey===s.id?' active':'')+'" data-key="'+esc(s.id)+'"><div class="spot-top"><div><div class="spot-name">'+esc(s.zh)+'</div><div class="spot-tags">'+tags+'</div><div class="spot-sub">'+sub+'</div><div class="spot-benefit">'+ben+'</div></div>'+
+      '<button class="icon-btn add" title="加入行程" onclick="event.stopPropagation();toggleCardPicker(this,'+kq+')">＋</button>'+
+      '<button class="icon-btn del" title="刪除景點" onclick="event.stopPropagation();hideSpot('+kq+')">🗑</button>'+
+      '<button class="icon-btn'+(starred?' starred':'')+'" title="'+(starred?'移出必去':'加入必去')+'" onclick="event.stopPropagation();toggleStar('+kq+')">'+(starred?'&#9733;':'&#9734;')+'</button></div>'+
+      '<div class="spot-links">'+links+'</div><div class="card-daypick"></div></div>';
+  }).join('');
+  var kq=searchInput.value.trim();
+  var kBtn=(kq.length>=2&&kakaoReady&&kakaoResults==null)?'<div class="ksearch" onclick="runKakaoSearch()"><span class="k">Kakao</span>在 Kakao 地圖搜尋「'+esc(kq)+'」（找餐廳、景點、住宿…）</div>':'';
+  spotList.innerHTML=kakaoResultHtml()+kBtn+spotList.innerHTML;
+  if(!list.length&&kakaoResults==null) spotList.innerHTML+='<div class="itin-empty">本地清單沒有符合的景點'+(kakaoReady?'，可用上方 Kakao 搜尋':'')+'</div>';
+
+  syncMarkers();
+
+  spotList.querySelectorAll('.spot-card').forEach(function(card){
+    card.addEventListener('click',function(){
+      var key=card.dataset.key;if(/^\d+$/.test(key)) key=parseInt(key);
+      flyTo(key);
+    });
+  });
+}
+function renderHiddenList(){
+  var hs=hiddenSpots();countBadge.textContent=hs.length;
+  if(!hs.length){spotList.innerHTML='<div class="itin-empty">沒有已刪除的景點</div>';currentFilter='all';document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn'+(b.dataset.filter==='all'?' active':'')});renderList();return;}
+  spotList.innerHTML='<div class="itin-empty" style="padding:10px 12px;text-align:left">這些景點已從清單和地圖隱藏。<button class="sm-btn" style="margin-left:6px" onclick="restoreAll()">全部還原</button></div>'+hs.map(function(s){
+    var kq=typeof s.id==='string'?"'"+s.id+"'":s.id;
+    return '<div class="spot-card"><div class="spot-top"><div><div class="spot-name" style="color:var(--text-muted)">'+esc(s.zh)+'</div><div class="spot-sub">'+esc(s.kr||s.addr||'')+'</div></div><button class="sm-btn" onclick="restoreSpot('+kq+')">還原</button></div></div>';
+  }).join('');
+  Object.keys(markers).forEach(function(k){var m=markers[k];var kk=/^\d+$/.test(k)?parseInt(k):k;if(isHidden(kk)&&map.hasLayer(m)) map.removeLayer(m);});
+}
+function hideSpot(key){
+  var s=getSpot(key);if(!s||s.air) return;
+  var inDays=daysOfSpot(key).length;
+  if(!confirm('刪除「'+s.zh+'」？'+(inDays?'\n它目前在 '+inDays+' 天的行程中，會一併移除。':'')+'\n（之後可從「🗑 已刪除」還原）')) return;
+  if(!isHidden(key)) state.hidden.push(key);
+  state.days.forEach(function(d){d.items=d.items.filter(function(it){return it.key!==key})});
+  if(markers[key]&&map.hasLayer(markers[key])) map.removeLayer(markers[key]);
+  save();renderList();renderItin();toast('已刪除：'+s.zh);
+}
+function restoreSpot(key){
+  state.hidden=state.hidden.filter(function(k){return k!==key});
+  var s=getSpot(key);if(s&&s.lat!=null){var m=ensureMarker(s);if(!map.hasLayer(m)) m.addTo(map);}
+  save();renderList();toast('已還原');
+}
+function restoreAll(){hiddenSpots().forEach(function(s){if(s.lat!=null){var m=ensureMarker(s);if(!map.hasLayer(m)) m.addTo(map);}});state.hidden=[];save();renderList();toast('已全部還原');}
+function flyTo(key){
+  var s=getSpot(key);if(!s) return;
+  if(isMobile()&&sheetState==='full') setSheet('peek');
+  if(isMobile()&&s.lat!=null&&markers[key]){applyPopupPadding();var z=14,pt=map.project([s.lat,s.lon],z);pt.y+=sheetH()/2;if(!map.hasLayer(markers[key])) markers[key].addTo(map);map.flyTo(map.unproject(pt,z),z,{duration:0.8});map.once('moveend',function(){markers[key].openPopup();});highlightCard(key);return;}
+  if(s.lat!=null&&markers[key]){if(!map.hasLayer(markers[key])) markers[key].addTo(map);map.flyTo([s.lat,s.lon],14,{duration:0.8});markers[key].openPopup();}
+  highlightCard(key);
+}
+function toggleCardPicker(btn,key){
+  var card=btn.closest('.spot-card');var box=card.querySelector('.card-daypick');
+  box.innerHTML=box.innerHTML?'':'<div class="day-picker"><span class="lbl">加入哪一天？</span>'+dayChips(key)+'</div>';
+}
+function highlightCard(key){
+  activeKey=key;
+  spotList.querySelectorAll('.spot-card').forEach(function(c){var k=c.dataset.key;if(/^\d+$/.test(k)) k=parseInt(k);c.classList.toggle('active',k===key);});
+  var ac=spotList.querySelector('.spot-card.active');if(ac) ac.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function toggleStar(key){
+  var i=state.stars.indexOf(key);if(i>=0) state.stars.splice(i,1);else state.stars.push(key);
+  save();refreshMarker(key);renderList();renderItin();
+}
+function resetStars(){
+  if(!confirm('把「必去」清單還原成原始預設？（不影響行程與自訂景點）')) return;
+  state.stars=SPOTS.filter(function(s){return s.origStar}).map(function(s){return s.id});
+  save();allSpots().forEach(function(s){refreshMarker(s.id)});renderList();renderItin();toast('已還原必去清單');
+}
+document.querySelectorAll('.filter-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.filter-btn').forEach(function(b){b.className='filter-btn'});
+    currentFilter=btn.dataset.filter;
+    btn.classList.add(currentFilter==='all'?'active':currentFilter==='hidden'?'active':'active-'+currentFilter);
+    renderList();
+  });
+});
+searchInput.addEventListener('input',function(){if(kakaoResults!=null&&searchInput.value.trim()!==kakaoQuery) kakaoResults=null;renderList();});
+searchInput.addEventListener('keydown',function(e){if(e.key==='Enter'&&kakaoReady&&searchInput.value.trim().length>=2) runKakaoSearch();});
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+    document.querySelectorAll('.pane').forEach(function(x){x.classList.remove('active')});
+    t.classList.add('active');document.getElementById('pane-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='itin') drawRoute(); else {routeLayer.clearLayers();syncMarkers();}
+    setTimeout(function(){map.invalidateSize()},50);
+  });
+});
+
+/* ---------- Itinerary ---------- */
+var curDay=0;
+var dayHeadOpen=(function(){try{return localStorage.getItem('jeju-ap-dayhead')==='1';}catch(e){return false;}})();
+function toggleDayHead(){dayHeadOpen=!dayHeadOpen;try{localStorage.setItem('jeju-ap-dayhead',dayHeadOpen?'1':'0');}catch(e){}applyDayHead();}
+function applyDayHead(){document.getElementById('dayHead').classList.toggle('open',dayHeadOpen);document.getElementById('dayBar').classList.toggle('open',dayHeadOpen);}
+function toMin(t){if(!t||!/^\d{1,2}:\d{2}$/.test(t)) return null;var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function fmt(m){if(m==null) return '--:--';var d=Math.floor(m/1440);m=((m%1440)+1440)%1440;var h=Math.floor(m/60),mi=m%60;return (h<10?'0':'')+h+':'+(mi<10?'0':'')+mi+(d>0?' (+'+d+'d)':'');}
+function distKm(a,b){var R=6371,dl=(b.lat-a.lat)*Math.PI/180,dn=(b.lon-a.lon)*Math.PI/180;var x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x));}
+/* Real driving time via OSRM (free, no key). Falls back to straight-line estimate. */
+var routeCache=(function(){try{return JSON.parse(localStorage.getItem('jeju-ap-routes')||'{}');}catch(e){return {};}})();
+var routeGeom={},routePending={},routeFail={},routeTimer=null,routeQueue=[],routeBusy=false;
+function routeKey(a,b){return a.lat.toFixed(4)+','+a.lon.toFixed(4)+'|'+b.lat.toFixed(4)+','+b.lon.toFixed(4);}
+function fetchRoute(a,b){
+  var k=routeKey(a,b);
+  if(routeCache[k]||routePending[k]||typeof fetch!=='function') return;
+  if(routeFail[k]&&Date.now()-routeFail[k]<60000) return;
+  routePending[k]=true;routeQueue.push([k,a,b]);runRouteQueue();
+}
+function runRouteQueue(){
+  if(routeBusy||!routeQueue.length) return;routeBusy=true;
+  var job=routeQueue.shift(),k=job[0],a=job[1],b=job[2];
+  fetch('https://router.project-osrm.org/route/v1/driving/'+a.lon+','+a.lat+';'+b.lon+','+b.lat+'?overview=full&geometries=geojson')
+    .then(function(r){return r.json()}).then(function(j){
+      var r=j&&j.routes&&j.routes[0];if(!r) throw 0;
+      routeCache[k]={m:Math.max(1,Math.round(r.duration/60*1.15)),km:Math.round(r.distance/100)/10};
+      routeGeom[k]=r.geometry.coordinates.map(function(c){return [c[1],c[0]]});
+      try{localStorage.setItem('jeju-ap-routes',JSON.stringify(routeCache));}catch(e){}
+      clearTimeout(routeTimer);routeTimer=setTimeout(function(){renderItin();},150);
+    }).catch(function(){routeFail[k]=Date.now();})
+    .then(function(){delete routePending[k];routeBusy=false;setTimeout(runRouteQueue,250);});
+}
+function estTravel(a,b){
+  if(!a||!b||a.lat==null||b.lat==null) return null;
+  var k=routeKey(a,b);
+  if(routeCache[k]) return routeCache[k].m;
+  var km=distKm(a,b)*1.3;var min=Math.round(km/40*60);
+  if(km<0.3) return 0;
+  fetchRoute(a,b);
+  return Math.max(5,Math.ceil(min/5)*5);
+}
+function estSource(a,b){if(!a||!b||a.lat==null||b.lat==null) return '';var c=routeCache[routeKey(a,b)];return c?'實際路網 '+c.km+'km':'直線估算';}
+function parseHours(h){
+  if(!h) return null;var m=h.match(/(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})/);if(!m) return null;
+  return {o:parseInt(m[1])*60+parseInt(m[2]),c:parseInt(m[3])*60+parseInt(m[4])};
+}
+function computeDay(d){
+  var cur=toMin(d.start);var prev=null;var lastPassArrive=null;var totalTravel=0;
+  return d.items.map(function(it,idx){
+    var s=getSpot(it.key);var est=idx>0?estTravel(prev,s):0;
+    var travel=(it.travel!=null&&it.travel!=='')?parseInt(it.travel):(est==null?0:est);
+    if(idx===0) travel=0;
+    totalTravel+=travel;
+    var arrive=cur==null?null:cur+travel;
+    var stay=it.stay!=null?parseInt(it.stay):(s&&s.stay!=null?s.stay:60);
+    var depart=arrive==null?null:arrive+stay;
+    var warns=[];
+    if(s){
+      var hh=parseHours(s.h);
+      if(hh&&arrive!=null){var am=((arrive%1440)+1440)%1440;if(am<hh.o||am>hh.c) warns.push('⚠ 非營業時間 '+s.h);}
+      if(!s.custom&&arrive!=null){if(lastPassArrive!=null&&arrive-lastPassArrive<60) warns.push('⏱ 與上個 Pass 景點間隔 <60 分');lastPassArrive=arrive;}
+      if(idx>0&&est==null&&it.travel==null) warns.push('無座標，車程未估');
+    }
+    var r={it:it,s:s,est:est,travel:travel,arrive:arrive,depart:depart,stay:stay,warns:warns,totalTravel:totalTravel};
+    cur=depart;prev=s;return r;
+  });
+}
+function renderDayTabs(){
+  var el=document.getElementById('dayTabs');
+  el.innerHTML=state.days.map(function(d,i){var l=dayLabel(d,i);return '<button class="day-tab'+(i===curDay?' active':'')+'" onclick="selectDay('+i+')">'+l.top+(i===curDay&&state.days.length>1?'<span class="day-x" title="刪除這天" onclick="event.stopPropagation();removeDay('+i+')">✕</span>':'')+'<small>'+l.sub+' · '+d.items.length+'點</small></button>';}).join('')+
+    '<button class="day-tab add" onclick="addDay()">＋<small>新增天</small></button>';
+  var n=state.days.reduce(function(a,d){return a+d.items.length},0);document.getElementById('tabItinN').textContent=n||'';
+}
+function selectDay(i){curDay=i;renderItin();drawRoute(true);}
+function addDay(){
+  var last=state.days[state.days.length-1];var dt=last?new Date(last.date+'T00:00:00'):new Date('2026-11-06T00:00:00');
+  if(last) dt.setDate(dt.getDate()+1);
+  var iso=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  state.days.push({date:iso,start:'09:00',note:'',items:[]});curDay=state.days.length-1;save();renderItin();renderList();
+}
+function removeDay(i){
+  if(state.days.length<=1){toast('至少保留一天');return;}
+  if(!confirm('刪除 Day '+(i+1)+'？當天排的景點會一起移除。')) return;
+  state.days.splice(i,1);curDay=Math.min(curDay,state.days.length-1);save();renderItin();renderList();drawRoute(true);
+}
+function updateDay(i,field,val){state.days[i][field]=val;save();renderItin();}
+function toggleSwapPicker(){
+  var box=document.getElementById('swapPick');if(!box) return;
+  if(box.style.display!=='none'){box.style.display='none';return;}
+  var chips=state.days.map(function(d,i){if(i===curDay) return '';var l=dayLabel(d,i);return '<button class="day-chip" onclick="swapDays('+curDay+','+i+')">'+l.top+' '+l.sub+'（'+d.items.length+'點）</button>';}).join('');
+  box.innerHTML='<div class="day-picker"><span class="lbl">把 Day '+(curDay+1)+' 的整批行程和哪一天交換？（日期、出發時間、備註留在原本的日子，只交換景點）</span>'+chips+'</div>';
+  box.style.display='';
+}
+function swapDays(a,b){
+  if(a===b||!state.days[a]||!state.days[b]) return;
+  var la=dayLabel(state.days[a],a),lb=dayLabel(state.days[b],b);
+  if(!confirm('交換 '+la.top+'（'+state.days[a].items.length+' 點）與 '+lb.top+'（'+state.days[b].items.length+' 點）的行程？')) return;
+  var t=state.days[a].items;state.days[a].items=state.days[b].items;state.days[b].items=t;
+  save();renderItin();renderList();drawRoute(true);toast('已交換 '+la.top+' ⇄ '+lb.top+' 的行程');
+}
+function clearDay(i){if(!confirm('清空 Day '+(i+1)+' 的所有景點？')) return;state.days[i].items=[];save();renderItin();renderList();drawRoute(true);}
+function addToDay(key,i){
+  if(/^\d+$/.test(String(key))) key=parseInt(key);
+  var s=getSpot(key);if(!s) return;
+  if(dupCheckable(s)){
+    var where=daysOfSpot(key);
+    if(where.length){
+      var labels=where.map(function(di){return 'Day '+(di+1)+(di===i?'（同一天）':'')});
+      if(!confirm('「'+s.zh+'」已經排在 '+labels.join('、')+'。\n還要再加入 Day '+(i+1)+' 嗎？'+(s.custom?'':'\n（Pass 優惠通常每個景點只能使用一次）'))) return;
+    }
+  }
+  state.days[i].items.push({key:key,stay:(s.stay!=null?s.stay:60),travel:null});
+  save();renderList();renderItin();refreshMarker(key);
+  map.closePopup();toast('已加入 Day '+(i+1)+'：'+s.zh);
+}
+function removeItem(di,idx){var k=state.days[di].items[idx].key;state.days[di].items.splice(idx,1);save();renderItin();renderList();refreshMarker(k);drawRoute(true);}
+function moveItem(di,idx,dir){var arr=state.days[di].items;var j=idx+dir;if(j<0||j>=arr.length) return;var t=arr[idx];arr[idx]=arr[j];arr[j]=t;save();renderItin();drawRoute(true);}
+function setItem(di,idx,field,val){var it=state.days[di].items[idx];it[field]=(val===''?null:parseInt(val));if(field==='stay'&&it.stay==null) it.stay=0;save();renderItin();}
+function resetTravel(di,idx){state.days[di].items[idx].travel=null;save();renderItin();}
+function moveItemTo(di,from,to){var arr=state.days[di].items;if(from===to) return;var it=arr.splice(from,1)[0];arr.splice(to,0,it);save();renderItin();drawRoute(true);}
+
+/* ---------- Pass validity (24/48/72h, multiple passes) ---------- */
+function absTime(d,min){if(min==null||!d||!d.date) return null;return new Date(d.date+'T00:00:00').getTime()+min*60000;}
+function fmtAbs(ms){var t=new Date(ms);return (t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');}
+function fmtClock(ms){var t=new Date(ms);return String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');}
+function fmtDur(ms){var m=Math.round(ms/60000),hh=Math.floor(m/60),mm=m%60;return hh+' 小時'+(mm?' '+mm+' 分':'');}
+function isPassSpot(s){return s&&!s.custom&&!s.air;}
+function dupCheckable(s){return !!s&&!s.air&&typeOf(s)!=='stay';}
+function allPassArrivals(){
+  var out=[];state.days.forEach(function(d,di){computeDay(d).forEach(function(r){if(isPassSpot(r.s)&&r.arrive!=null) out.push({t:absTime(d,r.arrive),di:di,key:r.it.key});});});
+  return out.sort(function(a,b){return a.t-b.t});
+}
+function passWindows(){
+  var arr=allPassArrivals();var wins=[];var prevEnd=-Infinity;
+  (state.passes||[]).forEach(function(ps,i){
+    var hrs=parseInt(ps.hours)||72,start=null;
+    if(ps.mode==='manual'){var t=ps.start?Date.parse(ps.start):NaN;start=isNaN(t)?null:t;}
+    else{for(var k=0;k<arr.length;k++){if(arr[k].t>prevEnd){start=arr[k].t;break;}}}
+    var w={i:i,hours:hrs,start:start,end:start==null?null:start+hrs*3600000,manual:ps.mode==='manual'};
+    wins.push(w);if(w.end!=null) prevEnd=Math.max(prevEnd,w.end);
+  });
+  return wins;
+}
+function coverAt(wins,t){for(var i=0;i<wins.length;i++){var w=wins[i];if(w.start!=null&&t>=w.start&&t<=w.end) return w;}return null;}
+function annotatePass(rows,d,wins){
+  var active=wins.filter(function(w){return w.start!=null});if(!active.length) return;
+  var firstStart=Math.min.apply(null,active.map(function(w){return w.start}));
+  rows.forEach(function(r){
+    if(!isPassSpot(r.s)||r.arrive==null) return;var t=absTime(d,r.arrive);var w=coverAt(active,t);
+    if(w){if(w.end-t<3*3600000) r.warns.push('⌛ Pass'+(active.length>1?' '+(w.i+1):'')+' 剩 '+fmtDur(w.end-t));else if(active.length>1) r.warns.push('🎫 Pass '+(w.i+1));return;}
+    if(t<firstStart){r.warns.push('⏳ Pass 尚未啟用');return;}
+    var lastEnd=Math.max.apply(null,active.map(function(w){return w.end}));
+    r.warns.push('<b>⏰ Pass 已到期</b>'+(t>lastEnd?'（超過 '+fmtDur(t-lastEnd)+'，需加購）':'（在兩張 Pass 之間的空窗）'));
+  });
+}
+var passOpen=(function(){try{return localStorage.getItem('jeju-ap-passopen')==='1';}catch(e){return false;}})();
+function togglePass(){passOpen=!passOpen;try{localStorage.setItem('jeju-ap-passopen',passOpen?'1':'0');}catch(e){}renderItin();}
+function setPass(i,field,val){state.passes[i][field]=val;save();renderItin();}
+function addPass(){var last=state.passes[state.passes.length-1];state.passes.push({hours:last?last.hours:72,mode:'auto',start:''});save();renderItin();toast('已加購一張 Pass（自動從前一張到期後的第一個 Pass 景點啟用）');}
+function removePass(i){if(state.passes.length<=1){toast('至少保留一張 Pass');return;}state.passes.splice(i,1);save();renderItin();}
+function renderPassBar(d,rows){
+  var wins=passWindows();var html='';
+  wins.forEach(function(w,i){
+    var ps=state.passes[i];
+    var seg=[24,48,72].map(function(hv){return '<button class="'+(w.hours===hv?'on':'')+'" onclick="setPass('+i+',\'hours\','+hv+')">'+hv+'h</button>';}).join('');
+    html+='<div class="pass-row"><span class="pn">🎫 Pass '+(i+1)+'</span><span class="pass-seg">'+seg+'</span>'+
+      '<select onchange="setPass('+i+',\'mode\',this.value)"><option value="auto"'+(ps.mode!=='manual'?' selected':'')+'>'+(i===0?'自動：第一個 Pass 景點抵達時啟用':'自動：前一張到期後的第一個 Pass 景點')+'</option><option value="manual"'+(ps.mode==='manual'?' selected':'')+'>手動指定啟用時間</option></select>'+
+      (ps.mode==='manual'?'<input type="datetime-local" value="'+esc(ps.start||'')+'" onchange="setPass('+i+',\'start\',this.value)">':'')+
+      (w.start!=null?'<span class="pw">'+fmtAbs(w.start)+' 啟用 → <b>'+fmtAbs(w.end)+'</b> 到期</span>':'<span class="pw">（尚無啟用時間）</span>')+
+      (wins.length>1?'<button class="pass-x" title="移除這張" onclick="removePass('+i+')">✕</button>':'')+'</div>';
+  });
+  html+='<div class="pass-row"><button class="sm-btn" onclick="addPass()">＋ 加購一張 Pass</button></div>';
+  var active=wins.filter(function(w){return w.start!=null});var cls='idle',msg='';
+  if(!active.length){msg='尚未排入任何 Pass 景點（或手動啟用時間未填）。排入後會自動以第一個 Pass 景點的抵達時間當啟用時間。';}
+  else{
+    var passRows=rows.filter(function(r){return isPassSpot(r.s)&&r.arrive!=null});
+    var dayStart=absTime(d,toMin(d.start));var last=rows.length?rows[rows.length-1]:null;var dayEnd=last&&last.depart!=null?absTime(d,last.depart):dayStart;
+    var uncovered=passRows.filter(function(r){return !coverAt(active,absTime(d,r.arrive))});
+    var expiring=active.filter(function(w){return w.end>=dayStart&&w.end<=dayEnd});
+    var covering=active.filter(function(w){return w.start<=dayEnd&&w.end>=dayStart});
+    if(!passRows.length){cls='idle';msg='今天沒有排 Pass 景點。'+(covering.length?'目前有效：'+covering.map(function(w){return 'Pass '+(w.i+1)+'（到 '+fmtAbs(w.end)+'）'}).join('、'):'');}
+    else if(uncovered.length){cls='bad';msg='<b>⚠ 今天有 '+uncovered.length+' 個 Pass 景點不在任何 Pass 有效期內</b>'+(expiring.length?'（'+expiring.map(function(w){return 'Pass '+(w.i+1)+' 於 '+fmtClock(w.end)+' 到期'}).join('、')+'）':'')+'。可考慮「＋加購一張 Pass」或調整順序。';}
+    else if(expiring.length){cls='warn';msg='⏰ '+expiring.map(function(w){return 'Pass '+(w.i+1)+' 今天 '+fmtClock(w.end)+' 到期'}).join('、')+'，之後的 Pass 景點已由其他 Pass 涵蓋，OK。';}
+    else{var w=covering[covering.length-1];var left=w.end-dayEnd;cls='ok';msg='✅ 今天的 Pass 景點都在有效期內。行程結束時 Pass '+(w.i+1)+' 還剩 <b>'+fmtDur(left)+'</b>（到期 '+fmtAbs(w.end)+'）'+(left>=24*3600000?'，隔天可以繼續用。':'，隔天請留意到期時間。');}
+  }
+  var head='\ud83c\udfab '+(state.passes.length>1?state.passes.length+' \u5f35 Pass':'Pass '+(wins[0]?wins[0].hours:72)+'h')+(active.length?'<small>\u5230\u671f '+fmtAbs(active[active.length-1].end)+'</small>':'<small>\u672a\u555f\u7528</small>')+'<small>'+(passOpen?'\u6536\u8d77':'\u8a2d\u5b9a')+'</small>';
+  document.getElementById('passBar').innerHTML='<div class="pass-head'+(passOpen?' open':'')+'" onclick="togglePass()"><span class="ph">'+head+'</span><span class="chev">&#9660;</span></div>'+
+    '<div class="pass-body'+(passOpen?' open':'')+'">'+html+'</div>'+'<div class="pass-status '+cls+(passOpen?'':' compact')+'">'+msg+'</div>';
+}
+
+function renderItin(){
+  renderDayTabs();
+  if(curDay>=state.days.length) curDay=state.days.length-1;
+  var d=state.days[curDay];var rows=computeDay(d);var l=dayLabel(d,curDay);
+  var pws=passWindows();annotatePass(rows,d,pws);renderPassBar(d,rows);
+  var last=rows.length?rows[rows.length-1]:null;
+  document.getElementById('dayBarSum').innerHTML='<span><b>'+l.sub+'</b></span><span>出發 <b>'+esc(d.start)+'</b></span><span>📍 '+rows.length+'</span><span>🏁 '+(last?fmt(last.depart):'--:--')+'</span>'+(d.note?'<span style="color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">📝 '+esc(d.note)+'</span>':'')+'<span style="color:var(--text-muted)">'+(dayHeadOpen?'收起':'展開設定')+'</span>';
+  applyDayHead();
+  var head=document.getElementById('dayHead');
+  head.innerHTML='<label>日期</label><input type="date" value="'+esc(d.date)+'" onchange="updateDay('+curDay+',\'date\',this.value)">'+
+    '<label>出發時間</label><input type="time" value="'+esc(d.start)+'" onchange="updateDay('+curDay+',\'start\',this.value)">'+
+    '<label>備註</label><textarea onchange="updateDay('+curDay+',\'note\',this.value)" placeholder="航班、住宿、提醒…">'+esc(d.note||'')+'</textarea>'+
+    (function(){var dup=rows.filter(function(r){return dupCheckable(r.s)&&(daysOfSpot(r.s.id).length>1||rows.filter(function(x){return x.s&&x.s.id===r.s.id}).length>1)}).length;return dup?'<div class="pass-status warn" style="grid-column:1/-1;margin:0">🔁 今天有 '+dup+' 個景點也出現在其他天或重複排入，請確認是否刻意安排。</div>':'';})()+
+    '<div class="day-summary"><span>📍 '+rows.length+' 個景點</span><span>🚗 總車程 '+(last?last.totalTravel:0)+' 分</span><span>🏁 結束約 '+(last?fmt(last.depart):'--:--')+'</span></div>'+
+    '<div class="row-actions"><button class="sm-btn" onclick="fitDay()">在地圖上顯示</button><button class="sm-btn" onclick="toggleSwapPicker()">⇄ 與其他天交換行程</button><button class="sm-btn" onclick="clearDay('+curDay+')">清空當天</button><button class="sm-btn danger" onclick="removeDay('+curDay+')">刪除這天</button></div>'+
+    '<div id="swapPick" style="grid-column:1/-1;display:none"></div>';
+  var list=document.getElementById('itinList');
+  if(!rows.length){list.innerHTML='<div class="itin-empty">這天還沒有景點。<br>到「景點」分頁按卡片右邊的「＋」，或在地圖 popup 點「＋加入行程」。<br>提示：Day 1 可以先加「濟州國際機場」當起點。<br><button class="sm-btn" style="margin-top:10px" onclick="addToDay(\'air\','+curDay+')">＋ 加入機場為起點</button></div>';return;}
+  var html='';
+  rows.forEach(function(r,idx){
+    var s=r.s;var kq=s?(typeof s.id==='string'?"'"+s.id+"'":s.id):null;
+    if(idx>0){
+      var overridden=r.it.travel!=null&&r.it.travel!=='';
+      html+='<div class="travel-row"><span class="line"></span>🚗 車程 <input type="number" min="0" step="5" value="'+r.travel+'" onchange="setItem('+curDay+','+idx+',\'travel\',this.value)"> 分'+
+        (r.est!=null?'<span class="est">（'+estSource(rows[idx-1].s,r.s)+' 估 '+r.est+' 分'+(overridden?'，<button class="reset-tr" onclick="resetTravel('+curDay+','+idx+')">還原估算</button>':'')+'）</span>':'<span class="est">（無法估算）</span>')+'</div>';
+    }
+    var tags='';
+    if(s){if(s.air) tags+='<span class="tag" style="background:#475569;color:#fff">機場</span>';else if(s.custom) tags+='<span class="tag tag-custom">非Pass</span>';else tags+=isStarred(s.id)?'<span class="tag tag-star">必去</span>':s.free?'<span class="tag tag-free">免費</span>':'<span class="tag tag-discount">折扣</span>';}
+    if(dupCheckable(s)){var others=daysOfSpot(s.id).filter(function(di){return di!==curDay});var sameDay=rows.filter(function(x){return x.s&&x.s.id===s.id}).length;
+      if(others.length) tags+='<span class="warn">🔁 也排在 '+others.map(function(di){return 'Day '+(di+1)}).join('、')+'</span>';
+      if(sameDay>1) tags+='<span class="warn">🔁 今天重複 '+sameDay+' 次</span>';}
+    r.warns.forEach(function(w){tags+='<span class="warn'+(w.indexOf('到期')>=0?' bad':'')+'\">'+w+'</span>';});
+    html+='<div class="itin-item" draggable="true" data-idx="'+idx+'">'+
+      '<span class="grip" title="拖曳排序">⋮⋮</span><div class="num">'+(idx+1)+'</div><div class="body">'+
+      '<div class="name" onclick="flyTo('+kq+')">'+(s?esc(s.zh):'（已刪除的景點）')+'</div>'+
+      '<div class="time"><b>'+fmt(r.arrive)+'</b> → '+fmt(r.depart)+(s&&s.h?' <span style="color:var(--text-muted);font-size:11px">· 營業 '+esc(s.h)+'</span>':'')+'</div>'+
+      '<div class="meta">停留 <input type="number" min="0" step="5" value="'+r.stay+'" onchange="setItem('+curDay+','+idx+',\'stay\',this.value)"> 分 '+tags+(s?naverBtn(s,' mini'):'')+'</div>'+
+      (s&&!s.custom?'<div class="meta" style="color:var(--text-secondary)">'+esc(s.bz)+'</div>':'')+
+      '</div><div class="ctrls">'+(s&&!s.air?'<button onclick="openEdit('+kq+')" title="編輯景點">✎</button>':'')+'<button onclick="moveItem('+curDay+','+idx+',-1)" title="上移">▲</button><button onclick="moveItem('+curDay+','+idx+',1)" title="下移">▼</button><button class="rm" onclick="removeItem('+curDay+','+idx+')" title="移除">✕</button></div></div>';
+  });
+  list.innerHTML=html;
+  var dragFrom=null;
+  list.querySelectorAll('.itin-item').forEach(function(el){
+    el.addEventListener('dragstart',function(e){dragFrom=parseInt(el.dataset.idx);el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragend',function(){el.classList.remove('dragging');list.querySelectorAll('.drag-over').forEach(function(x){x.classList.remove('drag-over')});});
+    el.addEventListener('dragover',function(e){e.preventDefault();el.classList.add('drag-over');});
+    el.addEventListener('dragleave',function(){el.classList.remove('drag-over');});
+    el.addEventListener('drop',function(e){e.preventDefault();var to=parseInt(el.dataset.idx);if(dragFrom!=null) moveItemTo(curDay,dragFrom,to);dragFrom=null;});
+  });
+  if(document.getElementById('pane-itin').classList.contains('active')) drawRoute();
+}
+function drawRoute(fit){
+  routeLayer.clearLayers();
+  if(!document.getElementById('pane-itin').classList.contains('active')) return;
+  var d=state.days[curDay];if(!d) return;
+  syncMarkers();
+  var pts=[];
+  d.items.forEach(function(it,idx){var s=getSpot(it.key);if(s&&s.lat!=null){pts.push([s.lat,s.lon]);if(markers[s.id]){if(!map.hasLayer(markers[s.id])) markers[s.id].addTo(map);markers[s.id].setIcon(iconFor(s,idx+1));}}});
+  allSpots().concat([AIRPORT]).forEach(function(s){if(markers[s.id]&&!d.items.some(function(it){return it.key===s.id})) markers[s.id].setIcon(iconFor(s));});
+  var legs=d.items.map(function(it){return getSpot(it.key)}).filter(function(s){return s&&s.lat!=null});
+  for(var i=1;i<legs.length;i++){
+    var g=routeGeom[routeKey(legs[i-1],legs[i])];
+    if(g) L.polyline(g,{color:'#2563EB',weight:4,opacity:0.8}).addTo(routeLayer);
+    else L.polyline([[legs[i-1].lat,legs[i-1].lon],[legs[i].lat,legs[i].lon]],{color:'#2563EB',weight:3,opacity:0.6,dashArray:'6 6'}).addTo(routeLayer);
+  }
+  if(fit&&pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:13});
+}
+function fitDay(){drawRoute(true);}
+
+/* ---------- Custom spots ---------- */
+var picking=false,customAddDay=null;
+function openEdit(key){
+  var s=getSpot(key);if(!s||s.air) return;
+  if(s.custom&&!s.naver){openCustomForm(s.id);return;}
+  openCustomForm(null,false,null,key);
+}
+function openCustomForm(id,toDay,prefill,overrideKey){
+  customAddDay=toDay?curDay:null;
+  var s=id?getSpot(id):(overrideKey!=null?getSpot(overrideKey):null);
+  var ov=overrideKey!=null;
+  document.getElementById('cMode').value=ov?'override':'custom';
+  document.getElementById('cBzField').style.display=ov?'':'none';
+  document.getElementById('cBz').value=s?(s.bz||''):'';
+  document.getElementById('cTel').value=s?(s.tel||''):'';
+  document.getElementById('cType').value=(s&&s.type&&ICONS[s.type])?s.type:'auto';
+  document.getElementById('cRestore').style.display=(ov&&state.edits[String(overrideKey)])?'':'none';
+  if(ov){
+    document.getElementById('customTitle').textContent='編輯景點：'+s.zh;
+    document.getElementById('cId').value=String(overrideKey);
+    document.getElementById('cName').value=s.zh||'';
+    document.getElementById('cAddr').value=s.addr||'';
+    document.getElementById('cNaver').value=s.nv||s.nvq||'';
+    document.getElementById('cHours').value=s.h||'';
+    document.getElementById('cStay').value=s.stay!=null?s.stay:60;
+    document.getElementById('cNote').value=s.note||'';
+    document.getElementById('cCoord').value=s.lat!=null?s.lat.toFixed(6)+', '+s.lon.toFixed(6):'';
+    document.getElementById('cDelete').style.display='none';
+    updateCoordHint();document.getElementById('customModal').classList.add('open');return;
+  }
+  document.getElementById('customTitle').textContent=s?'編輯自訂景點':(toDay?'新增自訂景點並加入 Day '+(curDay+1):'新增自訂景點（非 Pass）');
+  document.getElementById('cId').value=s?s.id:'';
+  document.getElementById('cName').value=s?s.zh:(prefill||'');
+  document.getElementById('cAddr').value=s?(s.addr||''):'';
+  document.getElementById('cNaver').value=s?(s.nv||s.nvq||''):'';
+  document.getElementById('cHours').value=s?(s.h||''):'';
+  document.getElementById('cStay').value=s&&s.stay!=null?s.stay:60;
+  document.getElementById('cNote').value=s?(s.note||''):'';
+  document.getElementById('cCoord').value=s&&s.lat!=null?s.lat.toFixed(6)+', '+s.lon.toFixed(6):'';
+  document.getElementById('cDelete').style.display=s?'':'none';
+  updateCoordHint();
+  document.getElementById('customModal').classList.add('open');
+}
+function parseCoord(v){var m=String(v).match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);if(!m) return null;var a=parseFloat(m[1]),b=parseFloat(m[2]);if(a<32||a>35||b<125||b>128) return null;return {lat:a,lon:b};}
+function updateCoordHint(){var c=parseCoord(document.getElementById('cCoord').value);var h=document.getElementById('coordHint');if(c){h.textContent='✓ 座標有效：'+c.lat.toFixed(5)+', '+c.lon.toFixed(5);h.className='coord-hint ok';}else{h.textContent=document.getElementById('cCoord').value?'座標格式看不懂，請用「緯度, 經度」，濟州約 33.x, 126.x':'沒有座標也可以儲存，只是不會顯示在地圖、也不估車程。';h.className='coord-hint';}}
+document.getElementById('cCoord').addEventListener('input',updateCoordHint);
+function startPick(){
+  picking=true;document.getElementById('customModal').classList.remove('open');document.getElementById('map').classList.add('placing');
+  toast('請在地圖上點一下要放的位置');
+}
+map.on('click',function(e){
+  if(!picking) return;picking=false;document.getElementById('map').classList.remove('placing');
+  document.getElementById('cCoord').value=e.latlng.lat.toFixed(6)+', '+e.latlng.lng.toFixed(6);updateCoordHint();
+  document.getElementById('customModal').classList.add('open');
+});
+function saveOverride(){
+  var k=document.getElementById('cId').value;var key=/^\d+$/.test(k)?parseInt(k):k;var s=getBase(key);if(!s) return;
+  var name=document.getElementById('cName').value.trim();if(!name){toast('請輸入名稱');return;}
+  var c=parseCoord(document.getElementById('cCoord').value);
+  var nvIn=document.getElementById('cNaver').value.trim();
+  var e={zh:name,addr:document.getElementById('cAddr').value.trim(),h:document.getElementById('cHours').value.trim(),note:document.getElementById('cNote').value.trim(),tel:document.getElementById('cTel').value.trim(),bz:document.getElementById('cBz').value.trim(),stay:parseInt(document.getElementById('cStay').value)||0};
+  if(/^https?:\/\//i.test(nvIn)){e.nv=nvIn;e.nvq='';}else{e.nvq=nvIn;if(nvIn) e.nv='';}
+  if(c){e.lat=c.lat;e.lon=c.lon;}
+  var ty=document.getElementById('cType').value;if(ty!=='auto') e.type=ty;
+  state.edits[k]=e;applyEdits();
+  if(markers[key]){if(s.lat!=null) markers[key].setLatLng([s.lat,s.lon]);refreshMarker(key);}
+  save();closeModal('customModal');renderList();renderItin();toast('已更新：'+name);
+}
+function restoreEdit(){
+  var k=document.getElementById('cId').value;var key=/^\d+$/.test(k)?parseInt(k):k;
+  if(!confirm('把這個景點還原成原始資料？（不影響行程）')) return;
+  delete state.edits[k];applyEdits();var s=getBase(key);
+  if(markers[key]&&s&&s.lat!=null){markers[key].setLatLng([s.lat,s.lon]);refreshMarker(key);}
+  save();closeModal('customModal');renderList();renderItin();toast('已還原');
+}
+function saveCustom(){
+  if(document.getElementById('cMode').value==='override'){saveOverride();return;}
+  var name=document.getElementById('cName').value.trim();if(!name){toast('請輸入名稱');return;}
+  var id=document.getElementById('cId').value||('c'+Date.now());
+  var c=parseCoord(document.getElementById('cCoord').value);
+  var s=getSpot(id)||{id:id,custom:true};
+  var nvIn=document.getElementById('cNaver').value.trim();s.nv=/^https?:\/\//i.test(nvIn)?nvIn:'';s.nvq=s.nv?'':nvIn;
+  s.zh=name;s.addr=document.getElementById('cAddr').value.trim();s.h=document.getElementById('cHours').value.trim();s.note=document.getElementById('cNote').value.trim();
+  s.stay=parseInt(document.getElementById('cStay').value)||0;s.lat=c?c.lat:null;s.lon=c?c.lon:null;s.tel=document.getElementById('cTel').value.trim();var ty=document.getElementById('cType').value;if(ty!=='auto') s.type=ty;else delete s.type;s.kr=s.kr||'';s.en='';s.bz='';s.be='';s.custom=true;
+  if(!state.custom.some(function(x){return x.id===id})) state.custom.push(s);
+  save();
+  if(s.lat!=null){var m=ensureMarker(s);if(!map.hasLayer(m)) m.addTo(map);}else if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+  closeModal('customModal');renderList();renderItin();
+  if(customAddDay!=null){addToDay(id,customAddDay);customAddDay=null;}else toast('已儲存：'+name);
+}
+
+/* Quick add (type to add) */
+var qaInput=document.getElementById('qaInput'),qaList=document.getElementById('qaList');
+function qaRender(){
+  var q=qaInput.value.trim().toLowerCase();if(!q){qaList.style.display='none';return;}
+  var res=[AIRPORT].concat(allSpots()).filter(function(s){return [s.zh,s.kr,s.en,s.addr,s.cat].some(function(f){return f&&String(f).toLowerCase().indexOf(q)>=0})}).slice(0,15);
+  var html=res.map(function(s){
+    var tag=s.air?'機場':isStarred(s.id)?'必去':s.custom?'非Pass':s.free?'免費':'折扣';
+    var cls=s.air?'tag-day':'tag-'+catOf(s);
+    return '<div class="qa-item" data-k="'+esc(s.id)+'"><span class="tag '+cls+'">'+tag+'</span>'+esc(s.zh)+'<span class="sub">'+esc(s.kr||s.addr||'')+'</span></div>';
+  }).join('');
+  if(kakaoReady) html+='<div class="qa-item" data-k="__kakao"><span class="tag" style="background:#FEE500;color:#191919">Kakao</span>在 Kakao 搜尋「'+esc(qaInput.value.trim())+'」再加入</div>';
+  html+='<div class="qa-item" data-k="__new"><span class="tag tag-custom">新增</span>建立自訂景點「'+esc(qaInput.value.trim())+'」並加入這天</div>';
+  qaList.innerHTML=html;
+  qaList.querySelectorAll('.qa-item').forEach(function(el){
+    el.onclick=function(){
+      var k=el.dataset.k;
+      if(k==='__new'){openCustomForm(null,true,qaInput.value.trim());}
+      else if(k==='__kakao'){searchInput.value=qaInput.value.trim();document.querySelector('.tab[data-tab=spots]').click();if(isMobile()) setSheet('full');runKakaoSearch();}
+      else{if(/^\d+$/.test(k)) k=parseInt(k);addToDay(k,curDay);}
+      qaInput.value='';qaList.style.display='none';
+    };
+  });
+  qaList.style.display='block';
+}
+qaInput.addEventListener('input',qaRender);qaInput.addEventListener('focus',qaRender);
+qaInput.addEventListener('keydown',function(e){if(e.key==='Enter'){var f=qaList.querySelector('.qa-item');if(f&&qaList.style.display==='block') f.click();}if(e.key==='Escape') qaList.style.display='none';});
+document.addEventListener('click',function(e){if(!e.target.closest('.quick-add')) qaList.style.display='none';});
+function deleteCustom(){
+  var id=document.getElementById('cId').value;if(!id) return;
+  if(!confirm('刪除這個自訂景點？行程中的也會一併移除。')) return;
+  state.custom=state.custom.filter(function(x){return x.id!==id});
+  state.days.forEach(function(d){d.items=d.items.filter(function(it){return it.key!==id})});
+  var si=state.stars.indexOf(id);if(si>=0) state.stars.splice(si,1);
+  if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+  save();closeModal('customModal');renderList();renderItin();drawRoute();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m) m.classList.remove('open');});});
+
+/* ---------- Share ---------- */
+function encodeShare(){return 'JEJU1.'+btoa(unescape(encodeURIComponent(JSON.stringify(state))));}
+function decodeShare(code){
+  code=String(code).trim();if(code.indexOf('JEJU1.')!==0) throw new Error('bad');
+  var o=JSON.parse(decodeURIComponent(escape(atob(code.slice(6)))));
+  if(!o||!Array.isArray(o.days)||!Array.isArray(o.stars)) throw new Error('bad');
+  o.custom=Array.isArray(o.custom)?o.custom:[];return o;
+}
+function openShare(){var cb=document.getElementById('collabBox');if(tripRef){cb.style.display='';document.getElementById('collabLink').value=collabUrl();}else cb.style.display='none';document.getElementById('shareOut').value=encodeShare();document.getElementById('shareIn').value='';document.getElementById('shareModal').classList.add('open');}
+function copyShare(){
+  var ta=document.getElementById('shareOut');ta.select();
+  try{navigator.clipboard.writeText(ta.value).then(function(){toast('已複製分享碼')},function(){document.execCommand('copy');toast('已複製分享碼')});}catch(e){document.execCommand('copy');toast('已複製分享碼');}
+}
+function normalizeState(o){
+  o.stars=Array.isArray(o.stars)?o.stars:[];o.custom=Array.isArray(o.custom)?o.custom:[];o.hidden=Array.isArray(o.hidden)?o.hidden:[];o.edits=(o.edits&&typeof o.edits==='object'&&!Array.isArray(o.edits))?o.edits:{};o.passes=(Array.isArray(o.passes)&&o.passes.length)?o.passes.filter(Boolean).map(function(x){return {hours:parseInt(x.hours)||72,mode:x.mode==='manual'?'manual':'auto',start:x.start||''}}):[{hours:72,mode:'auto',start:''}];
+  o.days=Array.isArray(o.days)&&o.days.length?o.days:defaultDays();
+  o.days.forEach(function(d){d.items=Array.isArray(d.items)?d.items.filter(Boolean):[];d.items.forEach(function(it){if(it.travel===undefined) it.travel=null;if(it.stay===undefined) it.stay=60;});d.note=d.note||'';});
+  return o;
+}
+function replaceState(o){
+  Object.keys(markers).forEach(function(k){if(String(k).charAt(0)==='c'){map.removeLayer(markers[k]);delete markers[k];}});
+  state=normalizeState(o);if(curDay>=state.days.length) curDay=state.days.length-1;
+  applyEdits();SPOTS.concat(NAVER).forEach(function(s){if(markers[s.id]&&s.lat!=null) markers[s.id].setLatLng([s.lat,s.lon]);});
+  state.custom.forEach(function(s){if(s.lat!=null){var m=ensureMarker(s);m.addTo(map);}});
+  SPOTS.concat(NAVER).forEach(function(s){var m=markers[s.id];if(!m) return;if(isHidden(s.id)){if(map.hasLayer(m)) map.removeLayer(m);}else if(!map.hasLayer(m)) m.addTo(map);});
+  allSpots().forEach(function(s){refreshMarker(s.id)});
+  renderList();renderItin();
+}
+function importShare(){
+  var v=document.getElementById('shareIn').value;if(!v.trim()){toast('請先貼上分享碼');return;}
+  var o;try{o=decodeShare(v);}catch(e){toast('分享碼格式不正確');return;}
+  if(!confirm('匯入會覆蓋你目前的必去清單、自訂景點與行程，確定？')) return;
+  replaceState(o);curDay=0;save();renderItin();
+  closeModal('shareModal');toast('匯入完成');
+}
+
+/* ---------- Cloud sync (Firebase Realtime Database) ---------- */
+var FB_CONFIG={apiKey:"AIzaSyAuv7Zcw6EEyUxxUIBdfdWlOZ-cLvNieXM",authDomain:"lunar-box-480604-h7.firebaseapp.com",databaseURL:"https://lunar-box-480604-h7-default-rtdb.firebaseio.com",projectId:"lunar-box-480604-h7",appId:"1:660313940508:web:502b15a75e6018177435d9"};
+var CLIENT_ID=Math.random().toString(36).slice(2,10);
+var tripId=null,tripRef=null,syncTimer=null,lastStamp=0,cloudOK=false;
+function setSync(txt,cls){var c=document.getElementById('syncChip');if(c){c.textContent='\u25cf '+txt;c.className='sync-chip '+cls;}}
+function getTripId(){var m=location.hash.match(/t=([a-z0-9_-]{4,40})/);return m?m[1]:null;}
+function genTripId(){var a='abcdefghijkmnpqrstuvwxyz23456789',s='';for(var i=0;i<10;i++) s+=a[Math.floor(Math.random()*a.length)];return s;}
+function collabUrl(){return location.origin+location.pathname+location.search+'#t='+tripId;}
+function initCloud(){
+  if(typeof firebase==='undefined'||!firebase.database){setSync('本機儲存','off');return;}
+  try{firebase.initializeApp(FB_CONFIG);}catch(e){setSync('本機儲存','off');return;}
+  tripId=getTripId();
+  if(!tripId){tripId=genTripId();history.replaceState(null,'','#t='+tripId);}
+  tripRef=firebase.database().ref('trips/'+tripId);
+  setSync('連線中…','pending');
+  var first=true;
+  tripRef.on('value',function(snap){
+    var v=snap.val();cloudOK=true;
+    if(first){first=false;if(v&&v.state){applyRemote(v);}else{pushCloud(true);}}
+    else if(v&&v.by!==CLIENT_ID&&(v.stamp||0)>lastStamp){applyRemote(v);toast('行程已由其他人更新');}
+    setSync('已同步','ok');
+  },function(){cloudOK=false;setSync('雲端連線失敗，本機儲存','off');});
+  firebase.database().ref('.info/connected').on('value',function(s){if(cloudOK) setSync(s.val()?'已同步':'離線，重新連線中…',s.val()?'ok':'pending');});
+  window.addEventListener('hashchange',function(){if(getTripId()&&getTripId()!==tripId) location.reload();});
+}
+function applyRemote(v){
+  if(!v||!v.state||!Array.isArray(v.state.days)) return;
+  lastStamp=v.stamp||0;applyingRemote=true;
+  try{replaceState(JSON.parse(JSON.stringify(v.state)));try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){}}
+  finally{applyingRemote=false;}
+}
+function pushCloud(now){
+  if(!tripRef) return;clearTimeout(syncTimer);
+  var run=function(){var stamp=Date.now();lastStamp=stamp;setSync('同步中…','pending');
+    tripRef.set({state:JSON.parse(JSON.stringify(state)),stamp:stamp,by:CLIENT_ID}).then(function(){setSync('已同步','ok')}).catch(function(){setSync('同步失敗，僅本機','off')});};
+  if(now) run(); else syncTimer=setTimeout(run,400);
+}
+function copyCollab(){var i=document.getElementById('collabLink');i.select();try{navigator.clipboard.writeText(i.value).then(function(){toast('已複製連結')},function(){document.execCommand('copy');toast('已複製連結')});}catch(e){document.execCommand('copy');toast('已複製連結');}}
+function newTrip(){if(!confirm('開一份新的空白行程？（目前這份仍保留在原本的連結）')) return;try{localStorage.removeItem(STORE_KEY);}catch(e){}location.hash='t='+genTripId();}
+
+/* ---------- Mobile bottom sheet ---------- */
+var isMobile=function(){return window.matchMedia('(max-width: 768px)').matches;};
+var sheetState='peek';
+function setSheet(s){
+  sheetState=s;document.body.classList.remove('sheet-full','sheet-min');
+  if(s!=='peek') document.body.classList.add('sheet-'+s);
+  var hint=document.getElementById('sheetHint');if(hint) hint.textContent=s==='full'?'往下拉縮小':s==='min'?'往上拉展開':'上下拉調整';
+  setTimeout(function(){map.invalidateSize();applyPopupPadding();},280);
+}
+function sheetH(){return isMobile()?document.querySelector('.sidebar').offsetHeight:0;}
+function applyPopupPadding(){var b=isMobile()?L.point(0,sheetH()+14):L.point(5,5);if(isMobile()){var vis=document.getElementById('map').offsetHeight-sheetH();document.documentElement.style.setProperty('--popmax',Math.max(140,vis-120)+'px');}Object.keys(markers).forEach(function(k){var pp=markers[k].getPopup();if(pp){pp.options.autoPanPaddingBottomRight=b;pp.options.autoPanPaddingTopLeft=L.point(5,8);}});}
+(function(){
+  var hd=document.getElementById('sheetHandle');if(!hd) return;
+  var y0=null,moved=false;
+  hd.addEventListener('click',function(){if(moved) return;setSheet(sheetState==='peek'?'full':sheetState==='full'?'min':'peek');});
+  hd.addEventListener('touchstart',function(e){y0=e.touches[0].clientY;moved=false;},{passive:true});
+  hd.addEventListener('touchmove',function(e){if(y0==null) return;var dy=e.touches[0].clientY-y0;if(Math.abs(dy)>28){moved=true;if(dy<0) setSheet(sheetState==='min'?'peek':'full');else setSheet(sheetState==='full'?'peek':'min');y0=e.touches[0].clientY;}},{passive:true});
+  hd.addEventListener('touchend',function(){y0=null;setTimeout(function(){moved=false},50);});
+  document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){if(isMobile()&&sheetState==='min') setSheet('peek');});});
+})();
+
+/* ---------- Toast ---------- */
+var toastTimer;function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},2200);}
+
+/* ---------- Init ---------- */
+NAVER.forEach(function(s){ensureMarker(s).addTo(map);});
+SPOTS.concat(NAVER).forEach(function(s){if(isHidden(s.id)&&markers[s.id]) map.removeLayer(markers[s.id]);});
+state.custom.forEach(function(s){if(s.lat!=null){var m=ensureMarker(s);m.addTo(map);}});
+renderList();renderItin();
+map.fitBounds(L.latLngBounds(SPOTS.map(function(s){return[s.lat,s.lon]})),{padding:[30,30]});
+setTimeout(function(){map.invalidateSize()},300);
+function fitViewport(){
+  var vv=window.visualViewport;var hgt=vv?vv.height:window.innerHeight;
+  document.body.style.height=Math.round(hgt)+'px';document.body.style.top=(vv?Math.round(vv.offsetTop):0)+'px';
+  if(window.scrollY||window.scrollX) window.scrollTo(0,0);
+  clearTimeout(fitViewport._t);fitViewport._t=setTimeout(function(){map.invalidateSize();if(typeof applyPopupPadding==='function') applyPopupPadding();},80);
+}
+window.addEventListener('resize',fitViewport);
+if(window.visualViewport){window.visualViewport.addEventListener('resize',fitViewport);window.visualViewport.addEventListener('scroll',fitViewport);}
+window.addEventListener('orientationchange',function(){setTimeout(fitViewport,300)});
+document.addEventListener('focusout',function(){setTimeout(fitViewport,150)});
+fitViewport();
+initCloud();
+applyPopupPadding();
+</script>

@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "trips": {
+      "$trip": {
+        ".read": "$trip.matches(/^[a-z0-9_-]{4,40}$/)",
+        ".write": "$trip.matches(/^[a-z0-9_-]{4,40}$/)",
+        ".validate": "newData.hasChildren(['state','stamp','by']) && newData.child('stamp').isNumber() && newData.child('by').isString()"
+      }
+    }
+  }
+}

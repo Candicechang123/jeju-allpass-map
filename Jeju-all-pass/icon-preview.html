@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>地圖圖標樣式預覽</title>
+<style>
+body{margin:0;font-family:'Noto Sans TC',system-ui,sans-serif;background:#F4F6F9;color:#1A2332;padding:20px}
+h1{font-size:20px;margin:0 0 4px}
+p.lead{color:#5A6578;font-size:13px;margin:0 0 18px}
+.opt{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.opt h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.opt h2 .tag{font-size:11px;font-weight:700;background:#DBEAFE;color:#2563EB;border-radius:10px;padding:2px 8px}
+.opt .desc{font-size:12px;color:#5A6578;margin:0 0 12px}
+.row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;background:linear-gradient(#e8efe4,#dfe9d8);border-radius:10px;padding:26px 18px 14px;background-image:radial-gradient(#c9d8c0 1px,transparent 1px);background-size:14px 14px;background-color:#e6eee0}
+.cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:64px}
+.cell .lb{font-size:11px;color:#5A6578;text-align:center;line-height:1.3}
+svg{display:block}
+/* A: current teardrop */
+.pinA{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.pinA span{transform:rotate(45deg);color:#fff;font-weight:700;font-size:12px}
+/* B: round badge with icon */
+.pinB{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.28);position:relative}
+.pinB:after{content:"";position:absolute;bottom:-7px;left:50%;margin-left:-5px;border:5px solid transparent;border-top-color:inherit;border-top-width:7px}
+.pinB svg{width:18px;height:18px;fill:#fff}
+.pinB .num{position:absolute;top:-6px;right:-7px;background:#1A2332;color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 4px;border:1.5px solid #fff}
+/* C: pin with icon */
+.pinC{position:relative;width:34px;height:44px}
+.pinC svg.shape{position:absolute;inset:0;width:34px;height:44px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+.pinC svg.ic{position:absolute;left:8px;top:7px;width:18px;height:18px;fill:#fff}
+/* D: minimal dot */
+.pinD{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.25),0 2px 4px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800}
+.pinD.big{width:30px;height:30px;font-size:12px}
+/* E: emoji sticker */
+.pinE{width:36px;height:36px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 6px rgba(0,0,0,.25);border-bottom:4px solid;position:relative}
+.pinE .num{position:absolute;top:-7px;right:-7px;color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 4px;border:1.5px solid #fff}
+</style></head><body>
+<h1>地圖圖標樣式選擇</h1>
+<p class="lead">顏色維持現有規則：紅＝必去、綠＝免費、橘＝折扣、紫＝非Pass、灰＝機場。差別在「形狀」與「是否用圖示表示類別」。行程模式的順序編號各方案都會保留。</p>
+
+<div class="opt"><h2>A. 目前：編號水滴針 <span class="tag">現況</span></h2><p class="desc">顯示景點編號，適合對照 Excel／清單；但看不出是餐廳還是景點。</p>
+<div class="row">
+<div class="cell"><div class="pinA" style="background:#E11D48"><span>4</span></div><div class="lb">必去</div></div>
+<div class="cell"><div class="pinA" style="background:#059669"><span>12</span></div><div class="lb">免費</div></div>
+<div class="cell"><div class="pinA" style="background:#D97706"><span>20</span></div><div class="lb">折扣</div></div>
+<div class="cell"><div class="pinA" style="background:#7C3AED"><span>N</span></div><div class="lb">非Pass</div></div>
+<div class="cell"><div class="pinA" style="background:#475569"><span>✈</span></div><div class="lb">機場</div></div>
+</div></div>
+
+<div class="opt"><h2>B. 圓形圖示徽章 <span class="tag">推薦</span></h2><p class="desc">圓底＋白色類別圖示（餐廳／咖啡／景點／購物／體驗／住宿／機場），顏色仍表示 Pass 類型；行程順序用右上角小黑標。手機上最好辨認。</p>
+<div class="row">
+<div class="cell"><div class="pinB" style="background:#E11D48;border-top-color:#E11D48"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z"/></svg><span class="num">3</span></div><div class="lb">必去<br>（順序3）</div></div>
+<div class="cell"><div class="pinB" style="background:#D97706;border-top-color:#D97706"><svg viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.1 1.7 3.9 3.8 4L6.5 22h3l-.3-9c2.1-.1 3.8-1.9 3.8-4V2h-2v7zm5-3v8h2.5v8H21V2c-2.8 0-5 2.2-5 4z"/></svg></div><div class="lb">餐廳</div></div>
+<div class="cell"><div class="pinB" style="background:#059669;border-top-color:#059669"><svg viewBox="0 0 24 24"><path d="M20 3H4v10c0 2.2 1.8 4 4 4h6c2.2 0 4-1.8 4-4v-3h2c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 5h-2V5h2v3zM2 21h18v-2H2v2z"/></svg></div><div class="lb">咖啡廳</div></div>
+<div class="cell"><div class="pinB" style="background:#059669;border-top-color:#059669"><svg viewBox="0 0 24 24"><path d="M12 3L2 21h20L12 3zm0 4.5L18.2 19H5.8L12 7.5z"/><circle cx="18.5" cy="6.5" r="2.5"/></svg></div><div class="lb">景點<br>／自然</div></div>
+<div class="cell"><div class="pinB" style="background:#7C3AED;border-top-color:#7C3AED"><svg viewBox="0 0 24 24"><path d="M18 6h-2c0-2.2-1.8-4-4-4S8 3.8 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z"/></svg></div><div class="lb">購物</div></div>
+<div class="cell"><div class="pinB" style="background:#D97706;border-top-color:#D97706"><svg viewBox="0 0 24 24"><path d="M22 10v6h-2v-6h2zM6 6h12c1.1 0 2 .9 2 2v2h-1v6c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2v-6H4V8c0-1.1.9-2 2-2zm1 9h2v-4H7v4zm8 0h2v-4h-2v4z"/></svg></div><div class="lb">體驗<br>／樂園</div></div>
+<div class="cell"><div class="pinB" style="background:#7C3AED;border-top-color:#7C3AED"><svg viewBox="0 0 24 24"><path d="M7 13c1.7 0 3-1.3 3-3S8.7 7 7 7s-3 1.3-3 3 1.3 3 3 3zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9c0-2.2-1.8-4-4-4z"/></svg></div><div class="lb">住宿</div></div>
+<div class="cell"><div class="pinB" style="background:#475569;border-top-color:#475569"><svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.8-.7-1.5-1.5-1.5S10 2.7 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div><div class="lb">機場</div></div>
+</div></div>
+
+<div class="opt"><h2>C. 圖示水滴針</h2><p class="desc">保留現在的針形（有明確的「插在地上」定位感），內部改成類別圖示。和 A 最接近，換過去最不突兀。</p>
+<div class="row">
+<div class="cell"><div class="pinC"><svg class="shape" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z" fill="#E11D48" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z"/></svg></div><div class="lb">必去</div></div>
+<div class="cell"><div class="pinC"><svg class="shape" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z" fill="#D97706" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.1 1.7 3.9 3.8 4L6.5 22h3l-.3-9c2.1-.1 3.8-1.9 3.8-4V2h-2v7zm5-3v8h2.5v8H21V2c-2.8 0-5 2.2-5 4z"/></svg></div><div class="lb">餐廳</div></div>
+<div class="cell"><div class="pinC"><svg class="shape" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z" fill="#059669" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M20 3H4v10c0 2.2 1.8 4 4 4h6c2.2 0 4-1.8 4-4v-3h2c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 5h-2V5h2v3zM2 21h18v-2H2v2z"/></svg></div><div class="lb">咖啡廳</div></div>
+<div class="cell"><div class="pinC"><svg class="shape" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z" fill="#7C3AED" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M18 6h-2c0-2.2-1.8-4-4-4S8 3.8 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z"/></svg></div><div class="lb">購物</div></div>
+<div class="cell"><div class="pinC"><svg class="shape" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.2 1 17c0 11 16 26 16 26s16-15 16-26C33 8.2 25.8 1 17 1z" fill="#475569" stroke="#fff" stroke-width="2"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.8-.7-1.5-1.5-1.5S10 2.7 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div><div class="lb">機場</div></div>
+</div></div>
+
+<div class="opt"><h2>D. 極簡圓點（＋行程放大編號）</h2><p class="desc">189 個點同時顯示時最不擁擠；一般景點是小圓點，排進當天行程的景點放大並顯示順序。適合「地圖乾淨、行程醒目」的人。</p>
+<div class="row">
+<div class="cell"><div class="pinD" style="background:#E11D48"></div><div class="lb">必去</div></div>
+<div class="cell"><div class="pinD" style="background:#059669"></div><div class="lb">免費</div></div>
+<div class="cell"><div class="pinD" style="background:#D97706"></div><div class="lb">折扣</div></div>
+<div class="cell"><div class="pinD" style="background:#7C3AED"></div><div class="lb">非Pass</div></div>
+<div class="cell"><div class="pinD big" style="background:#2563EB">1</div><div class="lb">行程順序1</div></div>
+<div class="cell"><div class="pinD big" style="background:#2563EB">2</div><div class="lb">行程順序2</div></div>
+</div></div>
+
+<div class="opt"><h2>E. Emoji 貼紙</h2><p class="desc">白底方塊＋Emoji（🍖 🍜 ☕ 🌋 🛍 🎢 🏨 ✈），底邊顏色表示 Pass 類型。最活潑、最一目了然，但視覺較重、密集時會擠。</p>
+<div class="row">
+<div class="cell"><div class="pinE" style="border-color:#E11D48">⭐<span class="num" style="background:#E11D48">3</span></div><div class="lb">必去</div></div>
+<div class="cell"><div class="pinE" style="border-color:#D97706">🍖</div><div class="lb">黑豬肉</div></div>
+<div class="cell"><div class="pinE" style="border-color:#7C3AED">🍜</div><div class="lb">餐廳</div></div>
+<div class="cell"><div class="pinE" style="border-color:#059669">☕</div><div class="lb">咖啡廳</div></div>
+<div class="cell"><div class="pinE" style="border-color:#7C3AED">🌋</div><div class="lb">景點</div></div>
+<div class="cell"><div class="pinE" style="border-color:#7C3AED">🛍️</div><div class="lb">購物</div></div>
+<div class="cell"><div class="pinE" style="border-color:#D97706">🎢</div><div class="lb">樂園</div></div>
+<div class="cell"><div class="pinE" style="border-color:#475569">✈️</div><div class="lb">機場</div></div>
+</div></div>
+</body></html>
